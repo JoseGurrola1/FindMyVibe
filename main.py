@@ -45,6 +45,8 @@ class GameRequest(BaseModel):
     city: str = "Austin TX"
     history: list[Answer] = Field(default_factory=list)
     rejected_ids: list[str] = Field(default_factory=list)
+    rejection_feedback: list[str] = Field(default_factory=list)
+
 
 
 @app.post("/api/game/next")
@@ -55,27 +57,34 @@ def next_turn(game: GameRequest):
             for answer in game.history
         ]
 
-        # Ask questions for the first 3 answers
-        if len(history) < 3:
-            question = ask_question(history)
+        rejected = set(game.rejected_ids)
+
+        # Initial round: ask 3 questions.
+        # Each rejected guess adds one follow-up question.
+        required_answers = 3 + len(rejected)
+
+        if len(history) < required_answers:
+            question = ask_question(
+                history,
+                game.rejection_feedback
+            )
 
             return {
                 "action": "ask_question",
                 **question
             }
 
-        # Once we have enough answers,
-        # generate a location search query
+        # Generate a search query using preferences
         search_query = create_search_query(history)
 
-        # Search real locations through SerpApi
+        # Retrieve real places from SerpApi
         places = get_places(search_query, game.city)
 
-        # Ask Gemini to choose a REAL place
+        # Have Gemini select a non-rejected place
         guess = choose_place(
             history,
             places,
-            game.rejected_ids
+            rejected
         )
 
         if guess is None:
@@ -98,3 +107,4 @@ def next_turn(game: GameRequest):
             status_code=502,
             detail="Unable to generate the next game turn"
         )
+

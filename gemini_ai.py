@@ -27,26 +27,34 @@ class PlaceGuess(BaseModel):
     reason: str
 
 
-def ask_question(history):
-    """Generate the next question based on previous answers."""
+
+def ask_question(history, rejection_feedback=None):
+    """Generate a question using previous answers and rejections."""
+
+    rejection_feedback = rejection_feedback or []
 
     prompt = f"""
-    You are FindMyVibe, an Akinator-style game.
+    You are FindMyVibe, an Akinator-style location game.
 
-    Your goal is to discover what type of real-world
-    place or activity the user wants.
+    Your goal is to discover the user's ideal real-world
+    place or activity.
 
     Previous questions and answers:
     {json.dumps(history)}
 
-    Generate ONE fun, conversational question.
+    Previous rejection feedback:
+    {json.dumps(rejection_feedback)}
+
+    Generate ONE useful follow-up question.
 
     Rules:
     - Provide 2 to 4 distinct answer options.
     - Do not repeat previous questions.
-    - Use previous answers to ask smarter questions.
-    - Narrow down mood, activity, setting, and budget.
-    - Keep the question short.
+    - Use earlier answers and rejection feedback.
+    - Ask questions that narrow down their preferences.
+    - If a place was rejected, focus on learning why
+      other locations might be a better fit.
+    - Keep the question short and conversational.
     """
 
     response = client.models.generate_content(
@@ -58,7 +66,10 @@ def ask_question(history):
         )
     )
 
-    return Question.model_validate_json(response.text).model_dump()
+    return Question.model_validate_json(
+        response.text
+    ).model_dump()
+
 
 
 def create_search_query(history):
@@ -92,6 +103,7 @@ def create_search_query(history):
     ).search_query
 
 
+
 def choose_place(history, places, rejected_ids):
     """Choose a real candidate, never invent a location."""
 
@@ -107,16 +119,29 @@ def choose_place(history, places, rejected_ids):
     prompt = f"""
     You are recommending a place for FindMyVibe.
 
+    Your goal is to select the real location that best
+    matches the user's preferences.
+
     User answers:
     {json.dumps(history)}
 
     Available REAL locations:
     {json.dumps(candidates)}
 
-    Choose the best matching candidate_id.
+    INSTRUCTIONS:
+    1. Choose the best matching candidate_id.
+    2. Only choose a candidate from the provided list.
+    3. Explain briefly why it matches the user's vibe.
 
-    Explain briefly why it matches the user's vibe.
-    Only choose a candidate from the provided list.
+    RECOMMENDATION RULES:
+    - Only use facts supported by the provided location data.
+    - Never infer crowd levels from review counts.
+    - Never invent prices, opening hours, or amenities.
+    - If an attribute is unknown, acknowledge uncertainty.
+    - Explain why the location may match the user's vibe.
+    - Do not claim the venue is empty unless verified.
+    - Never recommend a rejected place.
+    - Do not make unsupported assumptions about a place.
     """
 
     response = client.models.generate_content(
