@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 
 interface Place {
-  title: string;
+  title?: string;
+  name?: string;
   category?: string;
   rating?: number;
   reviews?: number;
@@ -16,7 +17,7 @@ interface Place {
 
 const FALLBACK_PLACES: Place[] = [
   {
-    title: "Cosmic Coffee + Beer Garden",
+    name: "Cosmic Coffee + Beer Garden",
     category: "Coffee shop & Beer garden",
     rating: 4.7,
     reviews: 3200,
@@ -26,7 +27,7 @@ const FALLBACK_PLACES: Place[] = [
     description: "Spacious outdoor garden with local beer, coffee, food trucks, and cozy night lighting."
   },
   {
-    title: "The Long Goodbye",
+    name: "The Long Goodbye",
     category: "Cocktail Bar & Coffee",
     rating: 4.6,
     reviews: 215,
@@ -36,7 +37,7 @@ const FALLBACK_PLACES: Place[] = [
     description: "Chic retro 70s lounge with artisan cocktails, coffee, and a relaxed back patio."
   },
   {
-    title: "Texas Toy Museum and Arcade",
+    name: "Texas Toy Museum and Arcade",
     category: "Arcade & Museum",
     rating: 4.8,
     reviews: 1854,
@@ -46,7 +47,7 @@ const FALLBACK_PLACES: Place[] = [
     description: "Vintage arcade games, retro collectibles, craft beer, and casual fun."
   },
   {
-    title: "Mozart's Coffee Roasters",
+    name: "Mozart's Coffee Roasters",
     category: "Bakery & Waterfront Cafe",
     rating: 4.5,
     reviews: 7400,
@@ -102,7 +103,6 @@ export default function Home() {
       .catch((err) => console.warn("Using fallback candidate list:", err));
   }, []);
 
-  // Simple client-side vibe matcher based on user keywords
   const rankPlacesByVibe = (answers: string[]) => {
     const rawTokens = answers
       .join(' ')
@@ -113,19 +113,18 @@ export default function Home() {
 
     const scored = places.map((place) => {
       let score = 0;
-      const searchableText = `${place.title} ${place.category || ''} ${place.description || ''} ${place.address || ''}`.toLowerCase();
+      const placeName = place.name || place.title || '';
+      const searchableText = `${placeName} ${place.category || ''} ${place.description || ''} ${place.address || ''}`.toLowerCase();
 
       rawTokens.forEach((token) => {
         if (searchableText.includes(token)) score += 3;
       });
 
-      // Bonus for high ratings
       if (place.rating && place.rating >= 4.5) score += 1;
 
       return { place, score };
     });
 
-    // Sort descending by match score
     scored.sort((a, b) => b.score - a.score);
     return scored.map((item) => item.place);
   };
@@ -138,7 +137,7 @@ export default function Home() {
     setGuessIndex(0);
   };
 
-  const handleNextQuestion = (answerToSubmit?: string) => {
+  const handleNextQuestion = async (answerToSubmit?: string) => {
     const finalAnswer = (answerToSubmit ?? inputText).trim();
     if (!finalAnswer) return;
 
@@ -149,9 +148,23 @@ export default function Home() {
     if (currentQIndex + 1 < QUESTIONS.length) {
       setCurrentQIndex(currentQIndex + 1);
     } else {
-      // Rank candidates against what the user typed
-      const ranked = rankPlacesByVibe(nextAnswers);
-      setRankedMatches(ranked);
+      // Query the live Python/SerpApi backend
+      try {
+        const res = await fetch('http://localhost:8000/api/find-vibe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers: nextAnswers }),
+        });
+        const data = await res.json();
+        if (data.places && data.places.length > 0) {
+          setRankedMatches(data.places);
+        } else {
+          setRankedMatches(rankPlacesByVibe(nextAnswers));
+        }
+      } catch (err) {
+        console.warn('API error, using local fallback:', err);
+        setRankedMatches(rankPlacesByVibe(nextAnswers));
+      }
       setGuessIndex(0);
       setScreen('GUESS');
     }
@@ -174,6 +187,7 @@ export default function Home() {
 
   const currentMatch = rankedMatches[guessIndex] || places[0] || FALLBACK_PLACES[0];
   const currentQ = QUESTIONS[currentQIndex];
+  const displayName = currentMatch.name || currentMatch.title || "Selected Spot";
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6">
@@ -265,16 +279,20 @@ export default function Home() {
           <div className="space-y-5">
             <div className="text-center">
               <span className="text-xs uppercase tracking-wider text-violet-400 font-semibold">My Match</span>
-              <h2 className="text-xl font-bold mt-1">{currentMatch.title}</h2>
+              <h2 className="text-xl font-bold mt-1">{displayName}</h2>
               <p className="text-xs text-neutral-400 mt-0.5">{currentMatch.category || 'Hangout Spot'}</p>
             </div>
 
-            {currentMatch.thumbnail && (
+            {currentMatch.thumbnail ? (
               <img
                 src={currentMatch.thumbnail}
-                alt={currentMatch.title}
+                alt={displayName}
                 className="w-full h-44 object-cover rounded-xl border border-neutral-800"
               />
+            ) : (
+              <div className="w-full h-28 bg-neutral-800/40 border border-neutral-700/40 rounded-xl flex items-center justify-center text-neutral-500 text-xs">
+                📍 {displayName}
+              </div>
             )}
 
             <div className="bg-neutral-800/50 p-3.5 rounded-xl space-y-1.5 text-xs text-neutral-300 border border-neutral-700/40">
@@ -296,7 +314,7 @@ export default function Home() {
 
             <div className="space-y-2 pt-2">
               <a
-                href={currentMatch.link || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentMatch.title + ' Austin')}`}
+                href={currentMatch.link || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayName + ' ' + (currentMatch.address || 'Austin'))}`}
                 target="_blank"
                 rel="noreferrer"
                 className="block w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-semibold text-center text-sm rounded-xl transition shadow-lg shadow-emerald-600/20 active:scale-[0.98]"
