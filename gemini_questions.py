@@ -98,7 +98,7 @@ def generate_next_question(
             api_key=api_key,
             vertexai=False,
             http_options=types.HttpOptions(
-                timeout=30_000,
+                timeout=90_000,
                 retry_options=types.HttpRetryOptions(attempts=1),
             ),
         ) as client:

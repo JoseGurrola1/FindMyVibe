@@ -52,7 +52,7 @@ class QuestionTests(unittest.TestCase):
         self.assertEqual(self.client_factory.call_args.kwargs["api_key"], "test-key-never-send")
         self.assertFalse(self.client_factory.call_args.kwargs["vertexai"])
         options = self.client_factory.call_args.kwargs["http_options"]
-        self.assertEqual(options.timeout, 30_000)
+        self.assertEqual(options.timeout, 90_000)
         self.assertEqual(options.retry_options.attempts, 1)
         self.client.models.generate_content.assert_called_once()
         request = self.client.models.generate_content.call_args.kwargs
