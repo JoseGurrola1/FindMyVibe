@@ -1,0 +1,222 @@
+[
+  {
+    "name": "The Eureka Room",
+    "place_id": "ChIJR7oJHQi1RIYRbPGCDKFl34g",
+    "rating": 4.5,
+    "category": "Tourist attraction",
+    "address": "3312 Randolph Rd, Austin, TX 78722",
+    "coordinates": {
+      "latitude": 30.286648099999997,
+      "longitude": -97.7115637
+    }
+  },
+  {
+    "name": "Texas Toy Museum and Arcade",
+    "place_id": "ChIJn8iXZa61RIYRf5Bc4f5jtZs",
+    "rating": 4.8,
+    "category": "Toy museum",
+    "address": "312 Congress Ave., Austin, TX 78701",
+    "coordinates": {
+      "latitude": 30.2658225,
+      "longitude": -97.7440044
+    }
+  },
+  {
+    "name": "Austin Duck Adventures",
+    "place_id": "ChIJRSBCeKe1RIYRpUXX3Z5EU18",
+    "rating": 4.8,
+    "category": "Tour operator",
+    "address": "103 E 5th St., Austin, TX 78701",
+    "coordinates": {
+      "latitude": 30.2666777,
+      "longitude": -97.74239039999999
+    }
+  },
+  {
+    "name": "Texas Capitol",
+    "place_id": "ChIJz42sFKC1RIYROdCVpyJXb8s",
+    "rating": 4.8,
+    "category": "Tourist attraction",
+    "address": "1100 Congress Ave., Austin, TX 78701",
+    "coordinates": {
+      "latitude": 30.274665199999998,
+      "longitude": -97.74035049999999
+    }
+  },
+  {
+    "name": "Museum of the Weird",
+    "place_id": "ChIJpduvU6a1RIYRIqQm9JA8wJA",
+    "rating": 4.2,
+    "category": "Tourist attraction",
+    "address": "412 E 6th St, Austin, TX 78701",
+    "coordinates": {
+      "latitude": 30.267167399999998,
+      "longitude": -97.73867
+    }
+  },
+  {
+    "name": "Museum of Illusions Austin",
+    "place_id": "ChIJCfovQivNRIYRkNWw-puG0Q0",
+    "rating": 4.5,
+    "category": "Tourist attraction",
+    "address": "11010 Domain Dr #100, Austin, TX 78758",
+    "coordinates": {
+      "latitude": 30.3963817,
+      "longitude": -97.7270988
+    }
+  },
+  {
+    "name": "Thinkery",
+    "place_id": "ChIJgarVmgi1RIYRpz5iYeJkXlA",
+    "rating": 4.6,
+    "category": "Tourist attraction",
+    "address": "1830 Simond Ave, Austin, TX 78723",
+    "coordinates": {
+      "latitude": 30.297417,
+      "longitude": -97.704971
+    }
+  },
+  {
+    "name": "Blazer Tag Adventure Center",
+    "place_id": "ChIJbUIlZbW0RIYRZxZTSKyNWjk",
+    "rating": 4.5,
+    "category": "Amusement center",
+    "address": "1701 W Ben White Blvd, Austin, TX 78704",
+    "coordinates": {
+      "latitude": 30.2269416,
+      "longitude": -97.78294179999999
+    }
+  },
+  {
+    "name": "The Escape Game Austin",
+    "place_id": "ChIJRz4gnqi1RIYRBsmXj82av1Y",
+    "rating": 5,
+    "category": "Tourist attraction",
+    "address": "405 Red River St, Austin, TX 78701",
+    "coordinates": {
+      "latitude": 30.2647627,
+      "longitude": -97.7375647
+    }
+  },
+  {
+    "name": "Austin Visitor Center",
+    "place_id": "ChIJRSBCeKe1RIYRW-wLgaDTg74",
+    "rating": 4.6,
+    "category": "Visitor center",
+    "address": "103 E 5th St., Austin, TX 78701",
+    "coordinates": {
+      "latitude": 30.2666777,
+      "longitude": -97.74239039999999
+    }
+  },
+  {
+    "name": "Austin Sign",
+    "place_id": "ChIJjcSU3Fm1RIYRW0zyqbJ5XZM",
+    "rating": 4.6,
+    "category": "Tourist attraction",
+    "address": "1720 S 1st St, Austin, TX 78704",
+    "coordinates": {
+      "latitude": 30.247519699999998,
+      "longitude": -97.7560365
+    }
+  },
+  {
+    "name": "Littlefield Fountain",
+    "place_id": "ChIJBZzwr521RIYRUPoKuU-VmV0",
+    "rating": 4.8,
+    "category": "Tourist attraction",
+    "address": "201 W 21st St, Austin, TX 78705",
+    "coordinates": {
+      "latitude": 30.283860299999997,
+      "longitude": -97.7396014
+    }
+  },
+  {
+    "name": "Altitude Trampoline Park",
+    "place_id": "ChIJz0JBiGRLW4YRk1X6r7RGYkg",
+    "rating": 4.4,
+    "category": "Amusement center",
+    "address": "6800 West Gate Blvd, Austin, TX 78745",
+    "coordinates": {
+      "latitude": 30.2095117,
+      "longitude": -97.8149139
+    }
+  },
+  {
+    "name": "Austin\u2019s",
+    "place_id": "ChIJc2CA8EfORIYRKyViYLRknmc",
+    "rating": 4.1,
+    "category": "Amusement center",
+    "address": "16231 N Interstate Hwy 35, Pflugerville, TX 78660",
+    "coordinates": {
+      "latitude": 30.4630677,
+      "longitude": -97.6662977
+    }
+  },
+  {
+    "name": "Cathedral of Junk",
+    "place_id": "ChIJ06oB4rq0RIYRIOcweOC97rE",
+    "rating": 4.5,
+    "category": "Tourist attraction",
+    "address": "4422 Lareina Dr, Austin, TX 78745",
+    "coordinates": {
+      "latitude": 30.218647299999997,
+      "longitude": -97.77157079999999
+    }
+  },
+  {
+    "name": "K1 Speed Austin",
+    "place_id": "ChIJJ5YY6YzLRIYRwehkJIJIhOg",
+    "rating": 4,
+    "category": "Tourist attraction",
+    "address": "2500 Mc Hale Ct, Austin, TX 78758",
+    "coordinates": {
+      "latitude": 30.384584999999998,
+      "longitude": -97.721313
+    }
+  },
+  {
+    "name": "Pease Park Treehouse",
+    "place_id": "ChIJnWbIJX-1RIYRWWUhKzTiBiM",
+    "rating": 4.9,
+    "category": "Tourist attraction",
+    "address": "1100 Kingsbury St, Austin, TX 78703",
+    "coordinates": {
+      "latitude": 30.282255499999998,
+      "longitude": -97.7527523
+    }
+  },
+  {
+    "name": "Austin Aquarium",
+    "place_id": "ChIJc-eLz84yW4YR0_Ternhe_MU",
+    "rating": 4,
+    "category": "Tourist attraction",
+    "address": "13530 US-183 #101, Austin, TX 78750",
+    "coordinates": {
+      "latitude": 30.449901899999997,
+      "longitude": -97.792278
+    }
+  },
+  {
+    "name": "Wild Basin Wilderness Preserve",
+    "place_id": "ChIJyYIRy3E1W4YR2yTvoVFY8no",
+    "rating": 4.6,
+    "category": "Tourist attraction",
+    "address": "805 N Capital of Texas Hwy, Austin, TX 78746",
+    "coordinates": {
+      "latitude": 30.3103345,
+      "longitude": -97.82353429999999
+    }
+  },
+  {
+    "name": "Cidercade Austin",
+    "place_id": "ChIJIV3Rfou1RIYRcy-TDV8jXzw",
+    "rating": 4.4,
+    "category": "Tourist attraction",
+    "address": "600 E Riverside Dr, Austin, TX 78704",
+    "coordinates": {
+      "latitude": 30.2524716,
+      "longitude": -97.7410337
+    }
+  }
+]
