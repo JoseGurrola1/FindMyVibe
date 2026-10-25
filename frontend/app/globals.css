@@ -53,6 +53,25 @@ body {
 @keyframes cat-tail   { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }
 @keyframes cat-nod    { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
 
+/* Blink every few seconds (both poses). */
+.walking-cat .cat-eye {
+  transform-box: view-box;
+  transform-origin: 52.5px 26.5px;
+  animation: cat-blink 4.2s infinite;
+}
+@keyframes cat-blink {
+  0%, 93%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+/* Idle pose: standing still, slow tail sway and head tilt. */
+.walking-cat.cat-idle .cat-leg,
+.walking-cat.cat-idle .cat-arm,
+.walking-cat.cat-idle .cat-bob,
+.walking-cat.cat-idle .cat-shadow { animation: none; }
+.walking-cat.cat-idle .cat-tail { animation-duration: 2.6s; }
+.walking-cat.cat-idle .cat-head { animation-duration: 3.2s; }
+
 @media (prefers-reduced-motion: reduce) {
   .walking-cat * { animation: none !important; }
 }

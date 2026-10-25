@@ -256,25 +256,9 @@ export default function Home() {
             
             {/* PUSS IN BOOTS COMPANION CARD */}
             <div className="w-full md:w-5/12 flex flex-col items-center text-center p-4 bg-[#f3e7d3]/80 border border-[#cbaf8b] rounded-2xl shadow-inner">
-              <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-[#b58c56] bg-[#eadecc] flex items-center justify-center shadow-md mb-3">
-                {/* 
-                  Drop your image into frontend/public/puss.png to display it here.
-                  If the file doesn't exist yet, it displays the fallback icon cleanly.
-                */}
-                <img
-                  src="/puss.png"
-                  alt="Puss in Boots"
-                  className="w-full h-full object-cover object-top"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    if (e.currentTarget.nextElementSibling) {
-                      (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
-                    }
-                  }}
-                />
-                <div style={{ display: 'none' }} className="w-full h-full items-center justify-center text-5xl">
-                  😼👢
-                </div>
+              <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-[#b58c56] bg-[#eadecc] flex items-end justify-center shadow-md mb-3">
+                {/* Our own mascot (components/WalkingCat.tsx), standing idle. */}
+                <WalkingCat size={118} pose="idle" label="Puss, your guide" />
               </div>
               <h3 className="font-bold text-base text-[#3a2211]">Puss in Boots</h3>
               <p className="text-xs text-[#8c6b47] italic mt-0.5">Your Swashbuckling Guide</p>

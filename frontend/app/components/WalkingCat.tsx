@@ -1,9 +1,19 @@
 /**
- * A small orange tabby walking upright in boots: the loading animation.
+ * Our mascot: an orange tabby standing upright in boots.
+ * pose="walk" (default) is the loading animation; pose="idle" stands still
+ * with a slow tail sway and a blink (the companion card on question screens).
  * Pure SVG + CSS (animations live in globals.css under "Walking cat"),
  * so there's no image to load and it stays sharp at any size.
  */
-export default function WalkingCat({ size = 72, label = 'Loading' }: { size?: number; label?: string }) {
+export default function WalkingCat({
+  size = 72,
+  label = 'Loading',
+  pose = 'walk',
+}: {
+  size?: number;
+  label?: string;
+  pose?: 'walk' | 'idle';
+}) {
   const fur = '#e8892b';
   const furDark = '#c9661a';
   const cream = '#f7d29c';
@@ -26,7 +36,7 @@ export default function WalkingCat({ size = 72, label = 'Loading' }: { size?: nu
       width={size * (80 / 96)}
       height={size}
       viewBox="0 0 80 96"
-      className="walking-cat inline-block"
+      className={`walking-cat inline-block${pose === 'idle' ? ' cat-idle' : ''}`}
     >
       {/* ground shadow */}
       <ellipse className="cat-shadow" cx="40" cy="90" rx="17" ry="2.6" fill="#7a4a22" opacity="0.18" />
@@ -68,8 +78,10 @@ export default function WalkingCat({ size = 72, label = 'Loading' }: { size?: nu
           <path d="M60.2 29.8 l2.3 0.6 l-1.6 1.8 z" fill="#c4544a" />
           <path d="M60.8 32.4 q-0.6 2.4 -2.8 2.2" fill="none" stroke="#5a3418" strokeWidth="1" strokeLinecap="round" />
           {/* eye */}
-          <ellipse cx="52.5" cy="26.5" rx="2" ry="2.7" fill="#2b1a0e" />
-          <circle cx="53.2" cy="25.6" r="0.75" fill="#fff" />
+          <g className="cat-eye">
+            <ellipse cx="52.5" cy="26.5" rx="2" ry="2.7" fill="#2b1a0e" />
+            <circle cx="53.2" cy="25.6" r="0.75" fill="#fff" />
+          </g>
           {/* cheek tuft + whiskers */}
           <path d="M35 32 l-2.5 1.5 l2.6 0.8" fill={fur} />
           <path d="M58 34.5 l8 -1.2 M58 36 l7.6 1.2" stroke="#5a3418" strokeWidth="0.7" strokeLinecap="round" opacity="0.7" />
