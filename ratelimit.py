@@ -5,10 +5,14 @@ Every game turn spends SerpApi and Gemini quota, and the site is public,
 so we cap how often each visitor (by IP) can call the API, plus an overall
 cap across all visitors.
 
+The per-visitor limits are generous on purpose: people on shared Wi-Fi
+(e.g. judges at a venue) all appear as one IP. The overall cap is what
+protects the quota.
+
 Limits can be changed without code edits via environment variables
 (e.g. in .env):
-    RATE_LIMIT_PER_MINUTE         default 20   (per visitor)
-    RATE_LIMIT_PER_HOUR           default 150  (per visitor)
+    RATE_LIMIT_PER_MINUTE         default 100  (per visitor)
+    RATE_LIMIT_PER_HOUR           default 1000 (per visitor)
     RATE_LIMIT_GLOBAL_PER_HOUR    default 1000 (all visitors combined)
     RATE_LIMIT_ENABLED            default true (set to false to turn off)
 
@@ -90,8 +94,8 @@ def limiters_from_env():
     """Build the per-visitor and global limiters from env settings."""
     enabled = os.getenv("RATE_LIMIT_ENABLED", "true").strip().lower() not in ("0", "false", "no", "off")
     per_visitor = RateLimiter([
-        (_env_int("RATE_LIMIT_PER_MINUTE", 20), 60),
-        (_env_int("RATE_LIMIT_PER_HOUR", 150), 3600),
+        (_env_int("RATE_LIMIT_PER_MINUTE", 100), 60),
+        (_env_int("RATE_LIMIT_PER_HOUR", 1000), 3600),
     ])
     overall = RateLimiter([
         (_env_int("RATE_LIMIT_GLOBAL_PER_HOUR", 1000), 3600),

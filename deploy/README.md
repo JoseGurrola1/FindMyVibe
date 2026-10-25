@@ -62,7 +62,7 @@ cd ~/FindMyVibe && bash deploy/update.sh
 | "502 Bad Gateway" | `systemctl status findmyvibe-api findmyvibe-web` |
 | Game errors | `journalctl -u findmyvibe-api -f` |
 | Changed a key in `.env` | `sudo systemctl restart findmyvibe-api` |
-| Players see "Puss needs a catnap!" | They hit the rate limit (default 20 turns/minute and 150/hour per visitor, 1000/hour total). Change `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_PER_HOUR` or `RATE_LIMIT_GLOBAL_PER_HOUR` in `.env`, then `sudo systemctl restart findmyvibe-api` |
+| Players see "Puss needs a catnap!" | They hit the rate limit (default 100 turns/minute and 1000/hour per visitor IP, 1000/hour total; everyone on one Wi-Fi shares one IP). Change `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_PER_HOUR` or `RATE_LIMIT_GLOBAL_PER_HOUR` in `.env`, then `sudo systemctl restart findmyvibe-api` |
 
 ## Cost
 
