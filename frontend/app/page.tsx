@@ -17,6 +17,7 @@ interface Place {
   reviews?: number;
   address?: string;
   thumbnail?: string;
+  hours_note?: string;
 }
 
 export default function Home() {
@@ -62,6 +63,8 @@ export default function Home() {
           history: newHistory,
           rejected_ids: newRejectedIds,
           rejection_feedback: newFeedback,
+          // So "tonight" / "Saturday" are read in the player's own time zone.
+          tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
 
@@ -340,6 +343,14 @@ export default function Home() {
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold mt-1 text-[#351e0e]">{placeName}</h2>
               <p className="text-xs text-[#8c6b47] mt-0.5 italic">{currentGuess.place?.category || `${cityLabel} Realm`}</p>
+              {currentGuess.place?.hours_note && (
+                <p
+                  data-testid="hours-note"
+                  className={`text-xs font-sans mt-1 ${currentGuess.place.hours_note.startsWith('Closed') ? 'text-[#a3331f]' : 'text-[#6d4d29]'}`}
+                >
+                  🕰️ {currentGuess.place.hours_note}
+                </p>
+              )}
             </div>
 
             {currentGuess.place?.thumbnail ? (

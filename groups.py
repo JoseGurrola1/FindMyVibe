@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS rooms (
     results     TEXT,
     winner      INTEGER,
     message     TEXT,
-    tie         TEXT
+    tie         TEXT,
+    tz          TEXT
 );
 CREATE TABLE IF NOT EXISTS members (
     id          TEXT PRIMARY KEY,
@@ -90,10 +91,11 @@ class GroupStore:
         if path != ":memory:":
             self._db.execute("PRAGMA journal_mode = WAL")
         self._db.executescript(SCHEMA)
-        # Databases made before tie-breaking existed lack the "tie" column.
+        # Add columns that older databases don't have yet.
         columns = {row["name"] for row in self._db.execute("PRAGMA table_info(rooms)")}
-        if "tie" not in columns:
-            self._db.execute("ALTER TABLE rooms ADD COLUMN tie TEXT")
+        for column in ("tie", "tz"):
+            if column not in columns:
+                self._db.execute(f"ALTER TABLE rooms ADD COLUMN {column} TEXT")
         self._db.commit()
 
     # -- helpers -------------------------------------------------------------
@@ -137,7 +139,7 @@ class GroupStore:
 
     # -- rooms and members ---------------------------------------------------
 
-    def create_room(self, name, city):
+    def create_room(self, name, city, tz=""):
         with self._lock:
             self._cleanup()
             room_id = secrets.token_urlsafe(9)
@@ -149,8 +151,8 @@ class GroupStore:
                 raise GroupError(503, "Couldn't make a room code. Try again.")
             now = _now()
             self._db.execute(
-                "INSERT INTO rooms (id, code, city, status, created_at, updated_at) VALUES (?, ?, ?, 'lobby', ?, ?)",
-                (room_id, code, city, now, now),
+                "INSERT INTO rooms (id, code, city, status, created_at, updated_at, tz) VALUES (?, ?, ?, 'lobby', ?, ?, ?)",
+                (room_id, code, city, now, now, tz),
             )
             member_id, token = self._new_member(room_id, name, is_host=True)
             self._db.commit()
@@ -309,7 +311,7 @@ class GroupStore:
             self._db.commit()
             if cur.rowcount != 1:
                 return None
-            return {"city": room["city"], "members": finished}
+            return {"city": room["city"], "tz": room["tz"], "members": finished}
 
     def save_results(self, room_id, results):
         with self._lock:

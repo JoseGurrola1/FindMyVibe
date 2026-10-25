@@ -14,6 +14,7 @@ from gemini_ai import (
 )
 from fallback import fallback_question, offline_places
 from ratelimit import limiters_from_env
+from hours import annotate, prefer_open
 from group_routes import build_router
 
 log = logging.getLogger("findmyvibe")
@@ -140,6 +141,9 @@ class GameRequest(BaseModel):
     history: list[Answer] = Field(default_factory=list)
     rejected_ids: list[str] = Field(default_factory=list)
     rejection_feedback: list[str] = Field(default_factory=list)
+    # The player's time zone from their browser (e.g. "America/Chicago"),
+    # used to read "tonight" / "Saturday" against opening hours.
+    tz: str = Field("", max_length=64)
 
 
 @app.post("/api/game/next")
@@ -188,16 +192,17 @@ def next_turn(game: GameRequest):
         # Generate a search query using preferences
         search_query = create_search_query(history, game.rejection_feedback, context)
 
-        # Retrieve real places (with fallbacks)
-        places = find_places(search_query, city)
+        # Retrieve real places (with fallbacks), check their opening hours
+        # against "when", and skip ones known to be closed then.
+        places, _ = annotate(find_places(search_query, city), context["when"], game.tz)
 
         # Pick a non-rejected place (Gemini, or the built-in fallback)
-        guess = choose_place(history, places, rejected, context)
+        guess = choose_place(history, prefer_open(places), rejected, context)
 
         # Everything from that search was rejected: widen the net once.
         if guess is None and search_query != BROAD_QUERY:
-            places = find_places(BROAD_QUERY, city)
-            guess = choose_place(history, places, rejected, context)
+            places, _ = annotate(find_places(BROAD_QUERY, city), context["when"], game.tz)
+            guess = choose_place(history, prefer_open(places), rejected, context)
 
         if guess is None:
             return {

@@ -277,6 +277,11 @@ def choose_place(history, places, rejected_ids, context=None):
         for i, place in enumerate(places)
         if not is_rejected(place, rejected_ids)
     ]
+    # The full weekly schedule is noise for the model; it gets hours_note
+    # and open_at_requested_time instead.
+    prompt_candidates = [
+        {k: v for k, v in c.items() if k != "operating_hours"} for c in candidates
+    ]
 
     if not candidates:
         return None
@@ -294,7 +299,7 @@ def choose_place(history, places, rejected_ids, context=None):
     {json.dumps(history)}
 
     Available REAL locations:
-    {json.dumps(candidates)}
+    {json.dumps(prompt_candidates)}
 
     INSTRUCTIONS:
     1. Choose the best matching candidate_id.
@@ -310,6 +315,9 @@ def choose_place(history, places, rejected_ids, context=None):
     - Do not claim the venue is empty unless verified.
     - Never recommend a rejected place.
     - Do not make unsupported assumptions about a place.
+    - If they said when they're going, prefer places whose
+      open_at_requested_time is true. Never say a place is open then
+      unless open_at_requested_time is true (null means hours unknown).
     """
 
     try:
@@ -390,7 +398,7 @@ def choose_group_places(members, places, city, limit=3):
     {_members_json(members)}
 
     Available REAL places:
-    {json.dumps(candidates)}
+    {json.dumps([{k: v for k, v in c.items() if k != "operating_hours"} for c in candidates])}
 
     Choose the {limit} best options for the group to vote on, best first.
     For each option give:

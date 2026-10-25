@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from gemini_ai import ask_question, choose_group_places, create_group_search_query
 from groups import GroupError, GroupStore
+from hours import annotate
 
 log = logging.getLogger("findmyvibe.groups")
 
@@ -30,6 +31,7 @@ BROAD_QUERY = "things to do"
 class CreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     city: str = Field(min_length=1, max_length=80)
+    tz: str = Field("", max_length=64)  # host's browser time zone, for opening hours
 
 
 class JoinRequest(BaseModel):
@@ -69,6 +71,8 @@ def build_router(find_places, store=None):
                 extra = find_places(BROAD_QUERY, city)
                 seen = {p.get("place_id") or p.get("name") for p in places}
                 places = places + [p for p in extra if (p.get("place_id") or p.get("name")) not in seen]
+            # No "when" in group mode yet: each card shows today's hours.
+            places, _ = annotate(places, "", job.get("tz"))
             results = choose_group_places(members, places, city, limit=3)
             store.save_results(room_id, results)
         except Exception:
@@ -81,7 +85,7 @@ def build_router(find_places, store=None):
         if not name or not city:
             return JSONResponse(status_code=422, content={"detail": "Please enter your name and a city."})
         try:
-            return store.create_room(name, city)
+            return store.create_room(name, city, req.tz.strip())
         except GroupError as e:
             return _error(e)
 

@@ -62,6 +62,10 @@ def get_places(query, city="Austin TX"):
             "address": place.get("address"),
             "thumbnail": place.get("thumbnail"),
             "coordinates": place.get("gps_coordinates"),
+            # Opening hours, e.g. {"friday": "11 AM–2 AM", ...}, and live
+            # status like "Open ⋅ Closes 10 PM" (see hours.py).
+            "operating_hours": place.get("operating_hours"),
+            "open_state": place.get("open_state"),
         })
 
     return places

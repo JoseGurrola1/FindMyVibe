@@ -40,7 +40,7 @@ export default function GroupPage() {
     try {
       const path = mode === 'create' ? '/api/groups' : '/api/groups/join';
       const payload = mode === 'create'
-        ? { name: name.trim(), city: city.trim() }
+        ? { name: name.trim(), city: city.trim(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone }
         : { name: name.trim(), code: code.trim().toUpperCase() };
       const res = await fetch(path, {
         method: 'POST',

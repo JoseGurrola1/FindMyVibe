@@ -12,6 +12,7 @@ interface Place {
   reviews?: number;
   address?: string;
   thumbnail?: string;
+  hours_note?: string;
 }
 
 interface Member {
@@ -383,6 +384,9 @@ export default function GroupRoom() {
               <p className="text-xs italic text-[#8c6b47]">
                 {r.place.category}{r.place.rating ? ` · ${r.place.rating}★` : ''}
               </p>
+              {r.place.hours_note && (
+                <p className="text-xs font-sans text-[#6d4d29] mt-0.5">🕰️ {r.place.hours_note}</p>
+              )}
             </div>
             <span className="shrink-0 text-xs font-sans font-bold bg-[#ede1ce] border border-[#cbb393] rounded-full px-2.5 py-1 text-[#6d4d29]">
               {r.votes} vote{r.votes === 1 ? '' : 's'}
