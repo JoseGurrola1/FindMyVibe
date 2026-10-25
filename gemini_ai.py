@@ -93,9 +93,16 @@ class Question(BaseModel):
     placeholder: str = ""
 
 
+class PersonFit(BaseModel):
+    name: str
+    why: str
+
+
 class GroupPick(BaseModel):
     candidate_id: int
     reason: str
+    # One entry per group member: what this place offers *them*.
+    per_person: list[PersonFit]
 
 
 class GroupPicks(BaseModel):
@@ -374,6 +381,7 @@ def choose_group_places(members, places, city, limit=3):
     candidates = [{"candidate_id": i, **p} for i, p in enumerate(places)]
     if not candidates:
         return []
+    names = [m["name"] for m in members]
 
     picks = []
     prompt = f"""
@@ -385,8 +393,13 @@ def choose_group_places(members, places, city, limit=3):
     {json.dumps(candidates)}
 
     Choose the {limit} best options for the group to vote on, best first.
-    For each, give a one-sentence reason that names who it suits and why,
-    e.g. "Maya gets her patio and Leo his craft beer."
+    For each option give:
+    - reason: one short sentence on why it works for the group as a whole.
+    - per_person: EXACTLY one entry for EACH person, in this order:
+      {", ".join(names)}. "why" is a few words on what that person gets
+      from this place, tied to their own answers (e.g. "the patio she
+      wanted"). Never skip anyone, even if it's a compromise for them
+      (then say so honestly, e.g. "not his first choice, but cheap").
 
     RULES:
     - Only choose candidate_ids from the list; no duplicates.
@@ -403,7 +416,11 @@ def choose_group_places(members, places, city, limit=3):
                 continue
             seen.add(pick.candidate_id)
             place = {k: v for k, v in chosen.items() if k != "candidate_id"}
-            picks.append({"place": place, "reason": pick.reason.strip()})
+            picks.append({
+                "place": place,
+                "reason": pick.reason.strip(),
+                "per_person": _clean_per_person(pick.per_person, names),
+            })
             if len(picks) == limit:
                 break
     except Exception:
@@ -415,5 +432,18 @@ def choose_group_places(members, places, city, limit=3):
         for place in fallback_rank(combined, places, taken, {"city": city}, limit=limit):
             if len(picks) == limit:
                 break
-            picks.append({"place": place, "reason": grounded_reason(place), "fallback": True})
+            picks.append({"place": place, "reason": grounded_reason(place), "per_person": [], "fallback": True})
+    for pick in picks:
+        pick["based_on"] = names
     return picks
+
+
+def _clean_per_person(entries, names):
+    """Keep one short line per real group member, in member order."""
+    by_name = {}
+    for entry in entries:
+        key = entry.name.strip().lower()
+        why = " ".join(entry.why.split())[:120]
+        if key and why and key not in by_name:
+            by_name[key] = why
+    return [{"name": n, "why": by_name[n.lower()]} for n in names if n.lower() in by_name]

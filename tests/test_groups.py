@@ -262,16 +262,47 @@ def test_search_crash_lets_host_retry(party, monkeypatch):
 def test_gemini_group_picks_validated_and_filled(monkeypatch):
     def fake(prompt, schema):
         return schema(picks=[
-            {"candidate_id": 3, "reason": "Ana gets a patio, Ben gets beer."},
-            {"candidate_id": 3, "reason": "duplicate"},
-            {"candidate_id": 99, "reason": "invented"},
+            {"candidate_id": 3, "reason": "Patio and beer for everyone.",
+             "per_person": [{"name": "Ana", "why": "the patio she wanted"},
+                            {"name": "ben", "why": "craft beer"},
+                            {"name": "Zed", "why": "not a real member"}]},
+            {"candidate_id": 3, "reason": "duplicate", "per_person": []},
+            {"candidate_id": 99, "reason": "invented", "per_person": []},
         ])
     monkeypatch.setattr(gemini_ai, "_generate", fake)
-    members = [{"name": "Ana", "history": [{"question": "q", "answer": "beer"}]}]
+    members = [{"name": "Ana", "history": [{"question": "q", "answer": "patio"}]},
+               {"name": "Ben", "history": [{"question": "q", "answer": "beer"}]}]
     picks = gemini_ai.choose_group_places(members, PLACES, "Austin, TX", limit=3)
-    assert [p["place"]["place_id"] for p in picks][0] == "p3"
-    assert picks[0]["reason"].startswith("Ana gets")
+    assert picks[0]["place"]["place_id"] == "p3"
+    # one line per real member, in member order, names matched case-insensitively
+    assert picks[0]["per_person"] == [{"name": "Ana", "why": "the patio she wanted"},
+                                      {"name": "Ben", "why": "craft beer"}]
     assert len(picks) == 3 and len({p["place"]["place_id"] for p in picks}) == 3
+    assert all(p["based_on"] == ["Ana", "Ben"] for p in picks)
+
+
+def test_prompt_lists_every_member_by_name(monkeypatch):
+    seen = []
+    monkeypatch.setattr(gemini_ai, "_generate", lambda p, s: seen.append(p) or boom())
+    members = [{"name": "Josh", "history": []}, {"name": "Nathan", "history": []}]
+    gemini_ai.choose_group_places(members, PLACES, "Austin, TX")
+    assert "Josh, Nathan" in seen[0] and "EACH person" in seen[0]
+
+
+def test_results_say_whose_answers_were_used(party):
+    room, host, guest = party
+    client.post(f"/api/groups/{room}/start", headers=h(host["member_token"]))
+    answer_all(room, host["member_token"])
+    client.post(f"/api/groups/{room}/search", headers=h(host["member_token"]))   # host goes early
+    s = state(room, guest["member_token"])
+    assert s["results"][0]["based_on"] == ["Ana"]
+
+
+def test_both_finishers_are_used(party):
+    room, host, guest = party
+    client.post(f"/api/groups/{room}/start", headers=h(host["member_token"]))
+    answer_all(room, host["member_token"]); answer_all(room, guest["member_token"])
+    assert state(room, host["member_token"])["results"][0]["based_on"] == ["Ana", "Ben"]
 
 
 def test_expired_room_is_gone(party, monkeypatch):

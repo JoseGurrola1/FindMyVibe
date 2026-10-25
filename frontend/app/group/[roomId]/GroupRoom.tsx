@@ -32,7 +32,13 @@ interface RoomState {
   questions_per_member: number;
   me: { id: string; name: string; is_host: boolean; done: boolean; answered: number; vote: number | null };
   members: Member[];
-  results: { place: Place; reason: string; votes: number }[];
+  results: {
+    place: Place;
+    reason: string;
+    votes: number;
+    per_person?: { name: string; why: string }[];
+    based_on?: string[];
+  }[];
   winner: number | null;
 }
 
@@ -76,7 +82,7 @@ export default function GroupRoom() {
   );
   const [room, setRoom] = useState<RoomState | null>(null);
   const [fatal, setFatal] = useState('');
-  const [actionError, setActionError] = useState('');
+  const [actionErrorAt, setActionErrorAt] = useState<{ message: string; status: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [question, setQuestion] = useState<Question | null>(null);
   const [custom, setCustom] = useState('');
@@ -129,19 +135,20 @@ export default function GroupRoom() {
     fetchingQuestion.current = true;
     call('/turn', 'POST', {})
       .then((q) => { if (!q.done) setQuestion(q); else refresh(); })
-      .catch((e) => setActionError((e as Error).message))
+      // 409 = the party already moved on (e.g. voting opened); just catch up.
+      .catch((e) => { if ((e as { status?: number }).status === 409) refresh(); else setActionErrorAt({ message: (e as Error).message, status: room.status }); })
       .finally(() => { fetchingQuestion.current = false; });
   }, [room, question, call, refresh]);
 
   const act = async (path: string, body?: unknown) => {
     setBusy(true);
-    setActionError('');
+    setActionErrorAt(null);
     try {
       const data = await call(path, 'POST', body ?? {});
       if (data && data.status) setRoom(data);
       return data;
     } catch (e) {
-      setActionError((e as Error).message);
+      setActionErrorAt({ message: (e as Error).message, status: room?.status || '' });
     } finally {
       setBusy(false);
     }
@@ -153,7 +160,12 @@ export default function GroupRoom() {
     if (!next) return;
     setCustom('');
     setQuestion(next.done ? null : next);
-    if (next.done) refresh();
+    if (next.done) {
+      // Mark myself done right away so we don't ask for another question
+      // before the next poll catches up.
+      setRoom((prev) => prev && { ...prev, me: { ...prev.me, done: true, answered: prev.questions_per_member } });
+      refresh();
+    }
   };
 
   const copyInvite = async () => {
@@ -224,6 +236,7 @@ export default function GroupRoom() {
     </ul>
   );
 
+  const actionError = actionErrorAt && actionErrorAt.status === room.status ? actionErrorAt.message : '';
   const errorLine = (actionError || room.message) && (
     <p role="alert" className="text-sm text-[#a3331f] font-sans text-center">{actionError || room.message}</p>
   );
@@ -342,6 +355,13 @@ export default function GroupRoom() {
   }
 
   // VOTING / DONE -------------------------------------------------------------
+  const basedOn = room.results[0]?.based_on || [];
+  const leftOut = room.members.filter((m) => basedOn.length && !basedOn.includes(m.name)).map((m) => m.name);
+  const basedOnLine = basedOn.length > 0 && (
+    <p className="text-xs font-sans text-[#8c6b47]">
+      Based on {basedOn.join(' & ')}&apos;s answers{leftOut.length ? ` (${leftOut.join(', ')} hadn't finished)` : ''}
+    </p>
+  );
   const done = room.status === 'done';
   const winner = done && room.winner !== null ? room.results[room.winner] : null;
 
@@ -368,6 +388,16 @@ export default function GroupRoom() {
             </span>
           </div>
           <p className="text-sm italic text-[#4d3522]">&ldquo;{r.reason}&rdquo;</p>
+          {r.per_person && r.per_person.length > 0 && (
+            <ul className="space-y-1 font-sans text-xs text-[#4d3522]">
+              {r.per_person.map((p) => (
+                <li key={p.name} className="flex gap-1.5">
+                  <span aria-hidden="true">🐾</span>
+                  <span><strong>{p.name}{p.name === room.me.name ? ' (you)' : ''}:</strong> {p.why}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           {!done && (
             <button
               disabled={busy}
@@ -394,6 +424,7 @@ export default function GroupRoom() {
         {header}
         <div className="text-center">
           <span className="text-xs uppercase tracking-[0.2em] text-[#936d3f] font-sans font-bold">👑 The party has chosen</span>
+          <div className="mt-1">{basedOnLine}</div>
         </div>
         {placeCard(winner, room.winner as number, true)}
         {room.results.length > 1 && (
@@ -420,6 +451,7 @@ export default function GroupRoom() {
       <div className="text-center space-y-1">
         <div className="text-xs uppercase tracking-[0.25em] text-[#936d3f] font-sans font-bold">Cast your vote</div>
         <h2 className="text-2xl font-bold text-[#3a2211]">Puss found {room.results.length} spots for your party</h2>
+        {basedOnLine}
         <p className="text-sm italic text-[#634931]">
           {notVoted.length ? `Still deciding: ${notVoted.join(', ')}` : 'Everyone has voted!'}
         </p>
