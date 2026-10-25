@@ -1,22 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 type Mode = 'create' | 'join';
 
+const noSubscribe = () => () => {};
+// Invite links look like /group?code=VIBE-4K2P.
+const invitedCode = () => new URLSearchParams(window.location.search).get('code');
+
 /**
- * Group Mode entry screen. Backend contract to implement next:
+ * Group Mode entry screen (backend: group_routes.py).
  * POST /api/groups {name, city} -> {room_id, code, member_token}
  * POST /api/groups/join {code, name} -> {room_id, code, member_token}
- * Never trust member IDs without an authenticated member token.
+ * The member token is sent as X-Member-Token on every room request.
  */
 export default function GroupPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>('create');
+  const invited = useSyncExternalStore(noSubscribe, invitedCode, () => null);
+  const [chosenMode, setMode] = useState<Mode | null>(null);
   const [name, setName] = useState('');
   const [city, setCity] = useState('Austin, TX');
-  const [code, setCode] = useState('');
+  const [typedCode, setCode] = useState<string | null>(null);
+  // With an invite link, open on "Join" with the code filled in.
+  const mode: Mode = chosenMode ?? (invited ? 'join' : 'create');
+  const code = typedCode ?? (invited ? invited.toUpperCase() : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -59,7 +68,7 @@ export default function GroupPage() {
     >
       <div className="absolute inset-0 bg-[#f5ede0]/80 backdrop-blur-[1px] pointer-events-none" />
       <section className="relative z-10 w-full max-w-xl bg-[#fcf8f0]/95 border-2 border-[#bfa27b] rounded-3xl p-6 sm:p-10 shadow-[0_15px_40px_rgba(120,70,30,0.2)]">
-        <a href="/" className="text-sm font-sans text-[#8b4f26] hover:underline">← Return to the solo quest</a>
+        <Link href="/" className="text-sm font-sans text-[#8b4f26] hover:underline">← Return to the solo quest</Link>
         <div className="text-center space-y-3 mt-7 mb-7">
           <div className="text-5xl" aria-hidden="true">🏰 👥</div>
           <div className="text-xs uppercase tracking-[0.25em] text-[#936d3f] font-sans font-bold">A fellowship of adventurers</div>
@@ -85,7 +94,7 @@ export default function GroupPage() {
           ) : (
             <label className="block text-sm font-semibold text-[#59391e]">
               Room code
-              <input required autoCapitalize="characters" value={code} onChange={(e) => setCode(e.target.value)} placeholder="VIBE-482" className="mt-1 w-full p-3 rounded-xl border border-[#caa87d] bg-[#fdfaf5] focus:outline-none focus:border-[#8b4f26] uppercase" />
+              <input required autoCapitalize="characters" value={code} onChange={(e) => setCode(e.target.value)} placeholder="VIBE-4K2P" className="mt-1 w-full p-3 rounded-xl border border-[#caa87d] bg-[#fdfaf5] focus:outline-none focus:border-[#8b4f26] uppercase" />
             </label>
           )}
           {error && <p role="alert" className="text-sm text-[#a3331f]">{error}</p>}
@@ -93,7 +102,7 @@ export default function GroupPage() {
             {busy ? 'Summoning the party...' : mode === 'create' ? 'Create our quest →' : 'Join the quest →'}
           </button>
         </form>
-        <p className="text-xs text-center text-[#8c6b47] mt-5 italic">Room creation and joining require the Group Mode API, which we'll add next.</p>
+        <p className="text-xs text-center text-[#8c6b47] mt-5 italic">Everyone answers a few questions on their own phone, then the party votes on Puss&apos;s top 3 picks.</p>
       </section>
     </main>
   );

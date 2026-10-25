@@ -3,6 +3,9 @@ import sys
 
 import pytest
 
+# Group Mode tests use a throwaway in-memory database.
+os.environ.setdefault("GROUPS_DB", ":memory:")
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 

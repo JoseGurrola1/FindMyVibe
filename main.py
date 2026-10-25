@@ -14,6 +14,7 @@ from gemini_ai import (
 )
 from fallback import fallback_question, offline_places
 from ratelimit import limiters_from_env
+from group_routes import build_router
 
 log = logging.getLogger("findmyvibe")
 
@@ -33,7 +34,11 @@ def client_ip(request: Request) -> str:
 
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
-    if RATE_LIMIT_ENABLED and request.url.path.startswith("/api/"):
+    path = request.url.path
+    # Group rooms are polled every ~2s to stay in sync; those reads cost no
+    # SerpApi/Gemini quota, so they don't count toward the limits.
+    is_room_poll = request.method == "GET" and path.startswith("/api/groups/")
+    if RATE_LIMIT_ENABLED and path.startswith("/api/") and not is_room_poll:
         ip = client_ip(request)
         wait = visitor_limiter.hit(ip)
         if wait is None:
@@ -216,3 +221,9 @@ def next_turn(game: GameRequest):
             "context": context,
             **fallback_question(history, game.rejection_feedback, context)
         }
+
+
+# Group Mode: /api/groups/... (see group_routes.py). Uses the same search,
+# with fallbacks, as solo mode.
+group_router = build_router(find_places)
+app.include_router(group_router)

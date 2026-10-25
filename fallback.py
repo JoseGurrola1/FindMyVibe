@@ -245,15 +245,12 @@ def is_rejected(place, rejected_ids):
     )
 
 
-def fallback_choose(history, places, rejected_ids, context=None):
+def fallback_rank(history, places, rejected_ids, context=None, limit=1):
     """
-    Pick the best-rated non-rejected place, with a small bonus for places
-    whose name/category mention something the user asked for.
+    The best-rated non-rejected places (up to `limit`), with a small bonus
+    for places whose name/category mention something the user asked for.
     """
     candidates = [p for p in places if not is_rejected(p, rejected_ids)]
-    if not candidates:
-        return None
-
     wanted = fallback_search_query(history, None, context).split()
 
     def score(place):
@@ -265,8 +262,15 @@ def fallback_choose(history, places, rejected_ids, context=None):
             value += 2
         return value
 
-    chosen = max(candidates, key=score)
-    return {"place": chosen, "reason": grounded_reason(chosen), "fallback": True}
+    return sorted(candidates, key=score, reverse=True)[:limit]
+
+
+def fallback_choose(history, places, rejected_ids, context=None):
+    """Pick the single best place (see fallback_rank)."""
+    ranked = fallback_rank(history, places, rejected_ids, context, limit=1)
+    if not ranked:
+        return None
+    return {"place": ranked[0], "reason": grounded_reason(ranked[0]), "fallback": True}
 
 
 def grounded_reason(place):

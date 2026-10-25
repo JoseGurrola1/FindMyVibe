@@ -10,6 +10,8 @@ from fallback import (
     fallback_question,
     fallback_search_query,
     fallback_choose,
+    fallback_rank,
+    grounded_reason,
     validate_question,
     is_rejected,
     parse_intro_fallback,
@@ -58,6 +60,8 @@ def _context_block(context):
         lines.append(f"- What they're in the mood for: {context['what']}")
     if context.get("when"):
         lines.append(f"- When they're going: {context['when']}")
+    if context.get("group"):
+        lines.append("- They're one member of a group outing; ask about THEIR OWN preferences")
     if not lines:
         return ""
     return (
@@ -87,6 +91,15 @@ class Question(BaseModel):
     options: list[str]
     # Short hint shown in the "type your own answer" box.
     placeholder: str = ""
+
+
+class GroupPick(BaseModel):
+    candidate_id: int
+    reason: str
+
+
+class GroupPicks(BaseModel):
+    picks: list[GroupPick]
 
 
 class IntroParse(BaseModel):
@@ -312,3 +325,95 @@ def choose_place(history, places, rejected_ids, context=None):
         log.exception("Gemini place choice failed; using fallback.")
 
     return fallback_choose(history, places, rejected_ids, context)
+
+
+# ---------------------------------------------------------------------------
+# Group mode
+# ---------------------------------------------------------------------------
+
+def _members_json(members):
+    """[{name, history}] -> compact JSON of each person's answers."""
+    return json.dumps([
+        {"name": m["name"], "answers": [
+            {"question": h["question"], "answer": h["answer"]} for h in m["history"]
+        ]}
+        for m in members
+    ])
+
+
+def create_group_search_query(members, city):
+    """One Google Maps search that should work for the whole group."""
+    prompt = f"""
+    A group of friends in {city} is choosing one place to go together.
+    Each person answered a few questions on their own:
+    {_members_json(members)}
+
+    Write ONE concise Google Maps search query (without the city) for the
+    kind of place most likely to satisfy everyone. Favor what people have
+    in common, and respect hard limits anyone gave (budget, dietary needs,
+    accessibility, indoors/outdoors). Examples of the style:
+    casual tapas bars
+    arcade bar with food
+    """
+    try:
+        query = _generate(prompt, SearchPlan).search_query.strip()
+        if query and len(query) <= 80:
+            return query
+        log.warning("Gemini group search query was unusable; using fallback.")
+    except Exception:
+        log.exception("Gemini group search query failed; using fallback.")
+    combined = [h for m in members for h in m["history"]]
+    return fallback_search_query(combined, None, {"city": city})
+
+
+def choose_group_places(members, places, city, limit=3):
+    """
+    Up to `limit` real places for the group to vote on, each with a reason.
+    Gemini ranks them; anything it gets wrong is filled in by the fallback.
+    """
+    candidates = [{"candidate_id": i, **p} for i, p in enumerate(places)]
+    if not candidates:
+        return []
+
+    picks = []
+    prompt = f"""
+    A group of friends in {city} is choosing one place to go together.
+    Each person's answers:
+    {_members_json(members)}
+
+    Available REAL places:
+    {json.dumps(candidates)}
+
+    Choose the {limit} best options for the group to vote on, best first.
+    For each, give a one-sentence reason that names who it suits and why,
+    e.g. "Maya gets her patio and Leo his craft beer."
+
+    RULES:
+    - Only choose candidate_ids from the list; no duplicates.
+    - Only use facts in the place data. Never invent prices, hours,
+      amenities or crowd levels; never infer crowds from review counts.
+    """
+    try:
+        result = _generate(prompt, GroupPicks)
+        allowed = {c["candidate_id"]: c for c in candidates}
+        seen = set()
+        for pick in result.picks:
+            chosen = allowed.get(pick.candidate_id)
+            if chosen is None or pick.candidate_id in seen or not pick.reason.strip():
+                continue
+            seen.add(pick.candidate_id)
+            place = {k: v for k, v in chosen.items() if k != "candidate_id"}
+            picks.append({"place": place, "reason": pick.reason.strip()})
+            if len(picks) == limit:
+                break
+    except Exception:
+        log.exception("Gemini group pick failed; using fallback.")
+
+    if len(picks) < limit:
+        taken = {p["place"].get("place_id") or p["place"].get("name") for p in picks}
+        combined = [h for m in members for h in m["history"]]
+        for place in fallback_rank(combined, places, taken, {"city": city}, limit=limit):
+            if len(picks) == limit:
+                break
+            picks.append({"place": place, "reason": grounded_reason(place), "fallback": True})
+    return picks
