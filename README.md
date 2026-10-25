@@ -183,6 +183,14 @@ The live site runs on one AWS EC2 server with Caddy for HTTPS.
 Every game turn uses your SerpApi and Gemini quota, so share the live link with
 judges and teammates rather than posting it publicly.
 
+## Team
+
+| Name | Focus |
+|---|---|
+| Joshua Aguilar ([@JoshAguilar501](https://github.com/JoshAguilar501)) | Frontend UI |
+| Nathan Landin ([@fiexinn](https://github.com/fiexinn)) | API integration and website features |
+| Jose Gurrola ([@JoseGurrola1](https://github.com/JoseGurrola1)) | Deployment and website features |
+
 ## License
 
 [MIT](LICENSE)
