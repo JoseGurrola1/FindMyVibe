@@ -21,15 +21,30 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_USER="$(id -un)"
 step() { echo; echo "==> $*"; }
 
-step "Installing system packages"
-sudo apt-get update -y
-sudo apt-get install -y git curl python3-venv python3-pip \
+# Never stop for interactive prompts, and wait (visibly) for Ubuntu's own
+# automatic updates, which hold the package lock for a while on a new server.
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
+apt_get() {
+  sudo -E apt-get -y -o DPkg::Lock::Timeout=900 \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "$@"
+}
+
+step "Installing system packages (may pause while Ubuntu finishes its automatic updates)"
+# Finish any install interrupted by an earlier Ctrl+C.
+sudo -E dpkg --configure -a || true
+apt_get update
+apt_get install git curl ca-certificates python3-venv python3-pip \
   debian-keyring debian-archive-keyring apt-transport-https gnupg
 
 step "Installing Node.js 22 (Next.js 16 needs Node 20.9 or newer)"
 if ! command -v node >/dev/null || [[ "$(node -v | cut -c2- | cut -d. -f1)" -lt 22 ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-  sudo apt-get install -y nodejs
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+    | sudo gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+    | sudo tee /etc/apt/sources.list.d/nodesource.list >/dev/null
+  apt_get update
+  apt_get install nodejs
 fi
 node -v
 
@@ -39,8 +54,8 @@ if ! command -v caddy >/dev/null; then
     | sudo gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
     | sudo tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
-  sudo apt-get update -y
-  sudo apt-get install -y caddy
+  apt_get update
+  apt_get install caddy
 fi
 
 step "Adding 2 GB of swap so the Next.js build doesn't run out of memory"
