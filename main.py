@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from places import get_places
@@ -14,6 +15,14 @@ from fallback import fallback_question, offline_places
 log = logging.getLogger("findmyvibe")
 
 app = FastAPI()
+
+# Let the Next.js dev server (on another port) call this API from the browser.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Broad search used when a specific query comes back empty.
 BROAD_QUERY = "things to do"
