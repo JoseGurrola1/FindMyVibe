@@ -191,13 +191,55 @@ def test_votes_pick_the_winner(party):
     assert s["status"] == "done" and s["winner"] == 2
 
 
-def test_tie_goes_to_top_pick(party):
+def finish_with_votes(party, a, b):
     room, host, guest = party
     client.post(f"/api/groups/{room}/start", headers=h(host["member_token"]))
     answer_all(room, host["member_token"]); answer_all(room, guest["member_token"])
-    client.post(f"/api/groups/{room}/vote", headers=h(host["member_token"]), json={"index": 2})
-    s = client.post(f"/api/groups/{room}/vote", headers=h(guest["member_token"]), json={"index": 1}).json()
-    assert s["status"] == "done" and s["winner"] == 1
+    client.post(f"/api/groups/{room}/vote", headers=h(host["member_token"]), json={"index": a})
+    return client.post(f"/api/groups/{room}/vote", headers=h(guest["member_token"]), json={"index": b}).json()
+
+
+def test_tie_is_a_coin_flip_between_tied_options(party, monkeypatch):
+    flips = []
+    monkeypatch.setattr(groups.secrets, "choice", lambda options: flips.append(list(options)) or options[-1])
+    s = finish_with_votes(party, 2, 1)
+    assert flips == [[1, 2]]                 # only the tied options, never option 0
+    assert s["status"] == "done" and s["winner"] == 2 and s["tie"] == [1, 2]
+
+
+def test_tie_result_is_saved_for_everyone(party):
+    s = finish_with_votes(party, 0, 2)
+    room, host, guest = party
+    for _ in range(5):                      # refreshing never re-flips the coin
+        for who in (host, guest):
+            again = state(room, who["member_token"])
+            assert again["winner"] == s["winner"] and again["tie"] == [0, 2]
+    assert s["winner"] in (0, 2)
+
+
+def test_tie_winner_varies(monkeypatch):
+    monkeypatch.setattr(main, "RATE_LIMIT_ENABLED", False)   # many parties in a row
+    winners = set()
+    for _ in range(20):                      # chance of no variety: 1 in ~500,000
+        host = create(); guest = join(host["code"], "Ben").json()
+        winners.add(finish_with_votes((host["room_id"], host, guest), 0, 1)["winner"])
+    assert winners == {0, 1}
+
+
+def test_clear_winner_has_no_tie(party):
+    s = finish_with_votes(party, 1, 1)
+    assert s["winner"] == 1 and s["tie"] is None
+
+
+def test_old_database_gets_tie_column(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.db"
+    old_schema = groups.SCHEMA.replace(",\n    tie         TEXT", "")
+    assert "tie" not in old_schema
+    db = sqlite3.connect(path); db.executescript(old_schema); db.commit(); db.close()
+    store = groups.GroupStore(str(path))
+    cols = {r["name"] for r in store._db.execute("PRAGMA table_info(rooms)")}
+    assert "tie" in cols
 
 
 def test_can_change_vote_and_bad_index_rejected(party):

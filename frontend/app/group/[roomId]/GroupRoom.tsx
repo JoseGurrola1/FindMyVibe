@@ -40,6 +40,7 @@ interface RoomState {
     based_on?: string[];
   }[];
   winner: number | null;
+  tie: number[] | null;
 }
 
 interface Question {
@@ -425,6 +426,12 @@ export default function GroupRoom() {
         <div className="text-center">
           <span className="text-xs uppercase tracking-[0.2em] text-[#936d3f] font-sans font-bold">👑 The party has chosen</span>
           <div className="mt-1">{basedOnLine}</div>
+          {room.tie && room.tie.length > 1 && (
+            <p className="mt-2 text-sm italic text-[#634931]" data-testid="tie-line">
+              It&apos;s a tie between {room.tie.map((i) => room.results[i]?.place.name).join(' and ')}!
+              Puss flipped his coin… 🪙
+            </p>
+          )}
         </div>
         {placeCard(winner, room.winner as number, true)}
         {room.results.length > 1 && (

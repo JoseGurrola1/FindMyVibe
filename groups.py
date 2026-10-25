@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS rooms (
     updated_at  REAL NOT NULL,
     results     TEXT,
     winner      INTEGER,
-    message     TEXT
+    message     TEXT,
+    tie         TEXT
 );
 CREATE TABLE IF NOT EXISTS members (
     id          TEXT PRIMARY KEY,
@@ -89,6 +90,10 @@ class GroupStore:
         if path != ":memory:":
             self._db.execute("PRAGMA journal_mode = WAL")
         self._db.executescript(SCHEMA)
+        # Databases made before tie-breaking existed lack the "tie" column.
+        columns = {row["name"] for row in self._db.execute("PRAGMA table_info(rooms)")}
+        if "tie" not in columns:
+            self._db.execute("ALTER TABLE rooms ADD COLUMN tie TEXT")
         self._db.commit()
 
     # -- helpers -------------------------------------------------------------
@@ -223,6 +228,8 @@ class GroupStore:
                 ],
                 "results": [{**r, "votes": votes[i]} for i, r in enumerate(results)],
                 "winner": room["winner"],
+                # Indexes of the options that tied for most votes, if any.
+                "tie": json.loads(room["tie"]) if room["tie"] else None,
             }
 
     # -- game flow -------------------------------------------------------------
@@ -349,6 +356,12 @@ class GroupStore:
         for m in self._members(room_id):
             if m["vote"] is not None and 0 <= m["vote"] < n_results:
                 tally[m["vote"]] += 1
-        # Most votes wins; ties go to the higher-ranked pick (lower index).
-        winner = max(range(n_results), key=lambda i: (tally[i], -i))
-        self._touch(room_id, status="done", winner=winner)
+        # Most votes wins. A tie is settled by a coin flip among the tied
+        # options, made once here and saved so everyone sees the same winner.
+        best = max(tally)
+        tied = [i for i in range(n_results) if tally[i] == best]
+        winner = secrets.choice(tied)
+        self._touch(
+            room_id, status="done", winner=winner,
+            tie=json.dumps(tied) if len(tied) > 1 else None,
+        )
