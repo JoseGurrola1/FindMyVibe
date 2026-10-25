@@ -20,6 +20,31 @@ log = logging.getLogger("findmyvibe.gemini")
 
 MODEL = "gemini-3.5-flash-lite"
 
+
+PREFERENCE_RULES = """
+CRITICAL USER PREFERENCE RULES:
+
+- The user's latest explicit preference ALWAYS overrides
+  conflicting previous preferences.
+- Users can change their minds at any point.
+- If the user says "actually", "never mind", "instead",
+  or corrects themselves, immediately adapt.
+- NEVER recommend an activity the user explicitly
+  said they no longer want.
+- Keep earlier preferences only if they don't conflict
+  with newer ones.
+- Never try to convince the user to return to an
+  earlier preference.
+- If the user changes activity categories, abandon
+  the old category immediately.
+- A new correction overrides multiple older answers.
+- Interpret the user's answer based on its actual meaning,
+  even if it doesn't directly answer the question.
+
+PRIORITY: What the user wants NOW matters most.
+"""
+
+
 # Give up on Gemini after this long and use the built-in fallback instead.
 GEMINI_TIMEOUT_MS = 15_000
 
@@ -72,6 +97,8 @@ def ask_question(history, rejection_feedback=None):
     rejection_feedback = rejection_feedback or []
 
     prompt = f"""
+    {PREFERENCE_RULES}
+
     You are FindMyVibe, an Akinator-style location game.
 
     Your goal is to discover the user's ideal real-world
@@ -113,8 +140,18 @@ def create_search_query(history, rejection_feedback=None):
     """Turn user answers into a Google Maps search query."""
 
     prompt = f"""
-    Based on these user preferences:
-    {json.dumps(history)}
+    {PREFERENCE_RULES}
+
+    Conversation history (oldest first, newest last):
+{json.dumps(history)}
+
+Previous rejection feedback:
+{json.dumps(rejection_feedback or [])}
+
+IMPORTANT:
+- Generate the search based on the user's CURRENT preferences.
+- If newer answers contradict older answers, use the newer ones.
+- Do not search for activities the user explicitly rejected.
 
     Generate ONE concise Google Maps search query
     for finding suitable real-world destinations.
@@ -151,6 +188,8 @@ def choose_place(history, places, rejected_ids):
         return None
 
     prompt = f"""
+    {PREFERENCE_RULES}
+
     You are recommending a place for FindMyVibe.
 
     Your goal is to select the real location that best
