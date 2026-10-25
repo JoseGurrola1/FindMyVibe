@@ -1,28 +1,24 @@
 import os
 import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List
 
 load_dotenv()
 
 API_KEY = os.getenv("SERPAPI_KEY")
 
-app = FastAPI()
-
-# Allow Next.js (running on localhost:3000) to call this backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 def get_places(query, city="Austin TX"):
+    """
+    Search Google Maps through SerpApi.
+
+    Args:
+        query: What the user wants to do.
+        city: The city to search in.
+
+    Returns:
+        List of matching locations.
+    """
+
     if not API_KEY:
         raise ValueError("Missing SERPAPI_KEY")
 
@@ -59,18 +55,7 @@ def get_places(query, city="Austin TX"):
     return places
 
 
-class VibeRequest(BaseModel):
-    answers: List[str]
-
-
-@app.post("/api/find-vibe")
-def find_vibe_endpoint(req: VibeRequest):
-    # Combine user questionnaire answers into a single search query
-    combined_query = " ".join([a for a in req.answers if a.strip()])
-    results = get_places(combined_query)
-    return {"places": results}
-
-
+# Only execute this when running places.py directly
 if __name__ == "__main__":
     results = get_places("romantic date spots")
     for place in results:
