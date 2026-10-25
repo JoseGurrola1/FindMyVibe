@@ -1,15 +1,38 @@
 import os
 import json
+import logging
 from google import genai
 from google.genai import types
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from dotenv import load_dotenv
+
+from fallback import (
+    fallback_question,
+    fallback_search_query,
+    fallback_choose,
+    validate_question,
+    is_rejected,
+)
 
 load_dotenv()
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+log = logging.getLogger("findmyvibe.gemini")
 
 MODEL = "gemini-3.5-flash-lite"
+
+# Give up on Gemini after this long and use the built-in fallback instead.
+GEMINI_TIMEOUT_MS = 15_000
+
+# If the key is missing, run in fallback-only mode instead of crashing.
+_api_key = os.getenv("GEMINI_API_KEY")
+if _api_key:
+    client = genai.Client(
+        api_key=_api_key,
+        http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS),
+    )
+else:
+    client = None
+    log.warning("GEMINI_API_KEY is missing; using built-in fallbacks only.")
 
 
 # Define the formats Gemini must return
@@ -26,6 +49,21 @@ class PlaceGuess(BaseModel):
     candidate_id: int
     reason: str
 
+
+def _generate(prompt, schema):
+    """Call Gemini and parse the JSON reply. Raises on any failure."""
+    if client is None:
+        raise RuntimeError("Gemini is not configured")
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+        ),
+    )
+    return schema.model_validate_json(response.text)
 
 
 def ask_question(history, rejection_feedback=None):
@@ -57,22 +95,21 @@ def ask_question(history, rejection_feedback=None):
     - Keep the question short and conversational.
     """
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=Question
+    try:
+        question = validate_question(
+            _generate(prompt, Question).model_dump(),
+            history,
         )
-    )
+        if question is not None:
+            return question
+        log.warning("Gemini question was unusable; using fallback.")
+    except Exception:
+        log.exception("Gemini question failed; using fallback.")
 
-    return Question.model_validate_json(
-        response.text
-    ).model_dump()
+    return fallback_question(history, rejection_feedback)
 
 
-
-def create_search_query(history):
+def create_search_query(history, rejection_feedback=None):
     """Turn user answers into a Google Maps search query."""
 
     prompt = f"""
@@ -89,19 +126,16 @@ def create_search_query(history):
     interactive museums
     """
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=SearchPlan
-        )
-    )
+    try:
+        query = _generate(prompt, SearchPlan).search_query.strip()
+        # Guard against empty or rambling queries.
+        if query and len(query) <= 80:
+            return query
+        log.warning("Gemini search query was unusable; using fallback.")
+    except Exception:
+        log.exception("Gemini search query failed; using fallback.")
 
-    return SearchPlan.model_validate_json(
-        response.text
-    ).search_query
-
+    return fallback_search_query(history, rejection_feedback)
 
 
 def choose_place(history, places, rejected_ids):
@@ -110,7 +144,7 @@ def choose_place(history, places, rejected_ids):
     candidates = [
         {"candidate_id": i, **place}
         for i, place in enumerate(places)
-        if place.get("place_id") not in rejected_ids
+        if not is_rejected(place, rejected_ids)
     ]
 
     if not candidates:
@@ -144,28 +178,23 @@ def choose_place(history, places, rejected_ids):
     - Do not make unsupported assumptions about a place.
     """
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=PlaceGuess
-        )
-    )
+    try:
+        guess = _generate(prompt, PlaceGuess)
 
-    guess = PlaceGuess.model_validate_json(response.text)
+        # Validate Gemini's selection against real candidates
+        allowed = {p["candidate_id"]: p for p in candidates}
+        chosen = allowed.get(guess.candidate_id)
 
-    # Validate Gemini's selection against real candidates
-    allowed = {p["candidate_id"]: p for p in candidates}
-    chosen = allowed.get(guess.candidate_id)
+        if chosen is not None and guess.reason.strip():
+            return {
+                "place": {
+                    k: v for k, v in chosen.items()
+                    if k != "candidate_id"
+                },
+                "reason": guess.reason.strip(),
+            }
+        log.warning("Gemini picked an invalid candidate; using fallback.")
+    except Exception:
+        log.exception("Gemini place choice failed; using fallback.")
 
-    if chosen is None:
-        raise ValueError("Gemini selected an invalid candidate")
-
-    return {
-        "place": {
-            k: v for k, v in chosen.items()
-            if k != "candidate_id"
-        },
-        "reason": guess.reason
-    }
+    return fallback_choose(history, places, rejected_ids)
