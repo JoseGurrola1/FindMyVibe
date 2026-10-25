@@ -1,7 +1,8 @@
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from places import get_places
@@ -11,11 +12,46 @@ from gemini_ai import (
     choose_place
 )
 from fallback import fallback_question, offline_places
+from ratelimit import limiters_from_env
 
 log = logging.getLogger("findmyvibe")
 
 app = FastAPI()
 
+# Rate limits (see ratelimit.py). Read after the imports above have
+# loaded .env, so limits can be tuned there.
+RATE_LIMIT_ENABLED, visitor_limiter, global_limiter = limiters_from_env()
+
+
+def client_ip(request: Request) -> str:
+    # Behind Caddy, uvicorn's proxy-header support (on by default for
+    # connections from 127.0.0.1) already replaces this with the visitor's
+    # real IP from X-Forwarded-For.
+    return request.client.host if request.client else "unknown"
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    if RATE_LIMIT_ENABLED and request.url.path.startswith("/api/"):
+        ip = client_ip(request)
+        wait = visitor_limiter.hit(ip)
+        if wait is None:
+            wait = global_limiter.hit("all")
+            if wait is not None:
+                log.warning("Global rate limit reached; asking %s to wait %ss", ip, wait)
+        if wait is not None:
+            return JSONResponse(
+                status_code=429,
+                headers={"Retry-After": str(wait)},
+                content={
+                    "detail": "Too many requests. Please slow down.",
+                    "retry_after": wait,
+                },
+            )
+    return await call_next(request)
+
+
+# Added after the rate limiter so CORS headers also apply to 429 replies.
 # Let the Next.js dev server (on another port) call this API from the browser.
 app.add_middleware(
     CORSMiddleware,

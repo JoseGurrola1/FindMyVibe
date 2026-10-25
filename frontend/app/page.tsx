@@ -30,11 +30,13 @@ export default function Home() {
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Returns true if the game moved forward, false if the request failed
+  // (so callers only record an answer once the server accepted it).
   const advanceGame = async (
     newHistory: HistoryItem[],
     newRejectedIds: string[],
     newFeedback: string[]
-  ) => {
+  ): Promise<boolean> => {
     setLoading(true);
     try {
       // Relative URL: same site in production (Caddy routes /api to FastAPI);
@@ -49,6 +51,15 @@ export default function Home() {
           rejection_feedback: newFeedback,
         }),
       });
+
+      if (res.status === 429) {
+        // Rate limited: tell the player how long to wait; keep their place.
+        const body = await res.json().catch(() => ({}));
+        const wait = Number(body.retry_after || res.headers.get('Retry-After')) || 60;
+        const when = wait >= 120 ? `${Math.ceil(wait / 60)} minutes` : `${wait} seconds`;
+        alert(`Puss needs a catnap! Too many questions too fast. Try again in ${when}.`);
+        return false;
+      }
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -70,9 +81,11 @@ export default function Home() {
         alert(data.message || 'Puss found no enchanted places matching your words!');
         setScreen('START');
       }
+      return true;
     } catch (err) {
       console.error('Tavern dispatch failed:', err);
-      alert('Could not reach the backend! Make sure main.py is running on port 8000.');
+      alert('Puss could not reach his tavern. Please try again in a moment.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -85,23 +98,25 @@ export default function Home() {
     advanceGame([], [], []);
   };
 
-  const handleAnswer = (answer: string) => {
-    if (!currentQuestion) return;
+  const handleAnswer = async (answer: string) => {
+    if (!currentQuestion || loading) return;
     const nextHistory = [...history, { question: currentQuestion.question, answer }];
-    setHistory(nextHistory);
-    setCustomInput('');
-    advanceGame(nextHistory, rejectedIds, rejectionFeedback);
+    if (await advanceGame(nextHistory, rejectedIds, rejectionFeedback)) {
+      setHistory(nextHistory);
+      setCustomInput('');
+    }
   };
 
-  const handleReject = (reason: string) => {
+  const handleReject = async (reason: string) => {
     const id = currentGuess?.place?.candidate_id || currentGuess?.place?.place_id || currentGuess?.place?.name || 'unknown_realm';
     const nextRejectedIds = [...rejectedIds, id];
     const nextFeedback = [...rejectionFeedback, reason];
 
-    setRejectedIds(nextRejectedIds);
-    setRejectionFeedback(nextFeedback);
-
-    advanceGame(history, nextRejectedIds, nextFeedback);
+    if (loading) return;
+    if (await advanceGame(history, nextRejectedIds, nextFeedback)) {
+      setRejectedIds(nextRejectedIds);
+      setRejectionFeedback(nextFeedback);
+    }
   };
 
   const placeName = currentGuess?.place?.name || currentGuess?.place?.title || 'An Enchanted Haven';
