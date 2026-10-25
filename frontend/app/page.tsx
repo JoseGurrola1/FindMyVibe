@@ -30,7 +30,6 @@ export default function Home() {
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Calls your partner's /api/game/next endpoint
   const advanceGame = async (
     newHistory: HistoryItem[],
     newRejectedIds: string[],
@@ -49,9 +48,7 @@ export default function Home() {
         }),
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
 
@@ -68,12 +65,12 @@ export default function Home() {
         });
         setScreen('GUESS');
       } else if (data.action === 'no_match') {
-        alert(data.message || 'No matching places found.');
+        alert(data.message || 'Puss found no enchanted places matching your words!');
         setScreen('START');
       }
     } catch (err) {
-      console.error('Error contacting backend:', err);
-      alert('Could not connect to backend. Make sure main.py is running on port 8000!');
+      console.error('Tavern dispatch failed:', err);
+      alert('Could not reach the backend! Make sure main.py is running on port 8000.');
     } finally {
       setLoading(false);
     }
@@ -95,173 +92,259 @@ export default function Home() {
   };
 
   const handleReject = (reason: string) => {
-    const id = currentGuess?.place?.candidate_id || currentGuess?.place?.place_id || currentGuess?.place?.name || 'unknown_id';
+    const id = currentGuess?.place?.candidate_id || currentGuess?.place?.place_id || currentGuess?.place?.name || 'unknown_realm';
     const nextRejectedIds = [...rejectedIds, id];
     const nextFeedback = [...rejectionFeedback, reason];
 
     setRejectedIds(nextRejectedIds);
     setRejectionFeedback(nextFeedback);
 
-    // This triggers main.py: required_answers = 3 + len(rejected)
-    // and sends Gemini's adaptive follow-up question!
     advanceGame(history, nextRejectedIds, nextFeedback);
   };
 
-  const placeName = currentGuess?.place?.name || currentGuess?.place?.title || 'Selected Spot';
+  const placeName = currentGuess?.place?.name || currentGuess?.place?.title || 'An Enchanted Haven';
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl">
+    <main
+      className="min-h-screen text-[#3d2716] flex flex-col items-center justify-center p-4 sm:p-8 font-serif selection:bg-amber-300 selection:text-amber-950 relative overflow-hidden bg-cover bg-center bg-no-repeat bg-fixed"
+      style={{ backgroundImage: "url('/background.avif')" }}
+    >
+      {/* Semi-transparent parchment tint overlay to ensure text stays readable */}
+      <div className="absolute inset-0 bg-[#f5ede0]/80 backdrop-blur-[1px] pointer-events-none" />
 
-        {/* LOADING */}
+      {/* Main Storybook Container */}
+      <div className="relative z-10 w-full max-w-3xl bg-[#fcf8f0]/95 border-2 border-[#bfa27b] rounded-3xl p-6 sm:p-10 shadow-[0_15px_40px_rgba(120,70,30,0.2)] ring-1 ring-amber-900/10 backdrop-blur-sm">
+      
+        {/* Ornate Corner Accents */}
+        <div className="absolute top-3.5 left-4 text-[#a88252] text-sm">✦</div>
+        <div className="absolute top-3.5 right-4 text-[#a88252] text-sm">✦</div>
+        <div className="absolute bottom-3.5 left-4 text-[#a88252] text-sm">✦</div>
+        <div className="absolute bottom-3.5 right-4 text-[#a88252] text-sm">✦</div>
+
+        {/* LOADING: PUSS IS SCOUTING */}
         {loading && (
-          <div className="py-12 text-center space-y-3">
-            <div className="text-3xl animate-spin">🔮</div>
-            <p className="text-sm text-neutral-400">Gemini is thinking...</p>
+          <div className="py-16 text-center space-y-4">
+            <div className="text-5xl animate-bounce tracking-widest">🐾 🗡️</div>
+            <h2 className="text-2xl font-bold tracking-wide text-[#59391e]">Puss is exploring the realm...</h2>
+            <p className="text-sm text-[#8c6b47] italic max-w-sm mx-auto">
+              Deciphering dusty tavern scrolls and scouting the streets of Austin...
+            </p>
           </div>
         )}
 
-        {/* START */}
+        {/* START SCREEN: PROLOGUE */}
         {!loading && screen === 'START' && (
-          <div className="text-center space-y-6">
-            <div className="text-5xl">🔍</div>
-            <h1 className="text-2xl font-bold tracking-tight">Find My Vibe</h1>
-            <p className="text-neutral-400 text-sm leading-relaxed">
-              Answer Gemini&apos;s questions to find your spot. If you reject a match, Gemini will ask adaptive follow-ups to dial it in.
+          <div className="text-center space-y-6 max-w-md mx-auto">
+            <div className="inline-block p-4 rounded-full bg-[#f3e7d3] border-2 border-[#caa87d] shadow-sm">
+              <span className="text-5xl">🏰 👢</span>
+            </div>
+            
+            <div className="space-y-1">
+              <span className="text-xs uppercase tracking-[0.25em] text-[#936d3f] font-sans font-bold">The Chronicles of Austin</span>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-[#3a2211] tracking-wide">Find My Vibe</h1>
+              <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-[#b58c56] to-transparent mx-auto mt-2" />
+            </div>
+
+            <p className="text-[#634931] text-base leading-relaxed italic">
+              &ldquo;Halt, noble traveler! Tell me what atmosphere your heart longs for tonight, and I, Puss in Boots, shall guide your path to glory!&rdquo;
             </p>
+
             <button
               onClick={handleStart}
-              className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 font-semibold rounded-xl transition cursor-pointer shadow-lg shadow-violet-600/20 active:scale-[0.98]"
+              className="w-full py-4 bg-gradient-to-r from-[#8b4f26] via-[#a35e2e] to-[#8b4f26] hover:from-[#75411d] hover:to-[#75411d] font-sans font-bold text-sm tracking-wider uppercase rounded-xl transition duration-200 shadow-lg shadow-amber-900/20 active:scale-[0.98] text-[#fcf8f0] border border-[#d4a86a] cursor-pointer"
             >
-              Start Game
+              Embark on the Quest →
             </button>
           </div>
         )}
 
-        {/* QUESTION (Dynamic from Gemini) */}
+        {/* QUESTION SCREEN: PUSS ASKS THE CLUES */}
         {!loading && screen === 'QUESTION' && currentQuestion && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between text-xs text-neutral-400">
-              <span>Question {history.length + 1}</span>
-              <span className="bg-neutral-800 px-2.5 py-1 rounded-full text-violet-400 border border-neutral-700">Akinator Mode</span>
+          <div className="flex flex-col md:flex-row gap-6 items-center">
+            
+            {/* PUSS IN BOOTS COMPANION CARD */}
+            <div className="w-full md:w-5/12 flex flex-col items-center text-center p-4 bg-[#f3e7d3]/80 border border-[#cbaf8b] rounded-2xl shadow-inner">
+              <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-[#b58c56] bg-[#eadecc] flex items-center justify-center shadow-md mb-3">
+                {/* 
+                  Drop your image into frontend/public/puss.png to display it here.
+                  If the file doesn't exist yet, it displays the fallback icon cleanly.
+                */}
+                <img
+                  src="/puss.png"
+                  alt="Puss in Boots"
+                  className="w-full h-full object-cover object-top"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextElementSibling) {
+                      (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                    }
+                  }}
+                />
+                <div style={{ display: 'none' }} className="w-full h-full items-center justify-center text-5xl">
+                  😼👢
+                </div>
+              </div>
+              <h3 className="font-bold text-base text-[#3a2211]">Puss in Boots</h3>
+              <p className="text-xs text-[#8c6b47] italic mt-0.5">Your Swashbuckling Guide</p>
             </div>
 
-            <h2 className="text-lg font-semibold text-neutral-100 leading-snug">
-              {currentQuestion.question}
-            </h2>
+            {/* DIALOGUE & QUESTIONS */}
+            <div className="w-full md:w-7/12 space-y-5">
+              <div className="flex items-center justify-between text-xs border-b border-[#ddcbb2] pb-2 font-sans">
+                <span className="text-[#966f3f] font-bold tracking-widest uppercase">
+                  Clue #{history.length + 1}
+                </span>
+                <span className="bg-[#ede1ce] border border-[#cbb393] px-2.5 py-0.5 rounded-full text-[#6d4d29] text-[11px]">
+                  ⚔️ Puss Inquires
+                </span>
+              </div>
 
-            <div className="space-y-2">
-              {currentQuestion.options && currentQuestion.options.length > 0 ? (
-                currentQuestion.options.map((opt, i) => (
+              <h2 className="text-xl sm:text-2xl font-bold text-[#351e0e] leading-snug">
+                &ldquo;{currentQuestion.question}&rdquo;
+              </h2>
+
+              <div className="space-y-2">
+                {currentQuestion.options && currentQuestion.options.length > 0 ? (
+                  currentQuestion.options.map((opt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleAnswer(opt)}
+                      className="w-full p-3.5 text-left text-sm bg-[#faf4e8] hover:bg-[#ebdcc7] hover:border-[#a88252] rounded-xl border border-[#d6c1a5] transition duration-200 cursor-pointer flex items-center justify-between group shadow-sm"
+                    >
+                      <span className="text-[#3c2817] font-medium group-hover:text-[#211409]">{opt}</span>
+                      <span className="text-[#b58c56] group-hover:translate-x-1 transition duration-200">🐾</span>
+                    </button>
+                  ))
+                ) : null}
+              </div>
+
+              {/* Custom Answer Input */}
+              <div className="pt-1">
+                <div className="flex gap-2 font-sans">
+                  <input
+                    type="text"
+                    placeholder="Whisper a custom answer..."
+                    value={customInput}
+                    onChange={(e) => setCustomInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && customInput.trim() && handleAnswer(customInput.trim())}
+                    className="w-full p-3 bg-[#fdfaf5] border border-[#caa87d] rounded-xl text-sm focus:outline-none focus:border-[#8b4f26] text-[#3c2817] placeholder-[#a68c71]"
+                  />
                   <button
-                    key={i}
-                    onClick={() => handleAnswer(opt)}
-                    className="w-full p-3.5 text-left text-sm bg-neutral-800 hover:bg-neutral-700/80 rounded-xl border border-neutral-700/50 transition cursor-pointer"
+                    onClick={() => customInput.trim() && handleAnswer(customInput.trim())}
+                    disabled={!customInput.trim()}
+                    className="px-4 py-3 bg-[#8b4f26] hover:bg-[#733f1c] disabled:opacity-40 font-bold rounded-xl text-sm transition text-[#fcf8f0] cursor-pointer"
                   >
-                    👉 {opt}
+                    ↵
                   </button>
-                ))
-              ) : null}
+                </div>
+              </div>
             </div>
 
-            <div className="pt-2 flex gap-2">
-              <input
-                type="text"
-                placeholder="Or type your own answer..."
-                value={customInput}
-                onChange={(e) => setCustomInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && customInput.trim() && handleAnswer(customInput.trim())}
-                className="w-full p-3 bg-neutral-800 border border-neutral-700 rounded-xl text-sm focus:outline-none focus:border-violet-500"
-              />
-              <button
-                onClick={() => customInput.trim() && handleAnswer(customInput.trim())}
-                disabled={!customInput.trim()}
-                className="px-4 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 font-semibold rounded-xl text-sm transition"
-              >
-                ↵
-              </button>
-            </div>
           </div>
         )}
 
-        {/* GUESS */}
+        {/* GUESS CARD: THE REVELATION */}
         {!loading && screen === 'GUESS' && currentGuess && (
-          <div className="space-y-5">
+          <div className="space-y-6 max-w-lg mx-auto">
             <div className="text-center">
-              <span className="text-xs uppercase tracking-wider text-violet-400 font-semibold">Gemini&apos;s Match</span>
-              <h2 className="text-xl font-bold mt-1">{placeName}</h2>
-              <p className="text-xs text-neutral-400 mt-0.5">{currentGuess.place?.category || 'Austin Venue'}</p>
+              <span className="text-xs uppercase tracking-[0.2em] text-[#936d3f] font-sans font-bold">
+                👑 The Destination Revealed
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold mt-1 text-[#351e0e]">{placeName}</h2>
+              <p className="text-xs text-[#8c6b47] mt-0.5 italic">{currentGuess.place?.category || 'Austin Realm'}</p>
             </div>
 
             {currentGuess.place?.thumbnail ? (
               <img
                 src={currentGuess.place.thumbnail}
                 alt={placeName}
-                className="w-full h-44 object-cover rounded-xl border border-neutral-800"
+                className="w-full h-48 object-cover rounded-2xl border-2 border-[#cbaf8b] shadow-md"
               />
             ) : (
-              <div className="w-full h-24 bg-neutral-800/40 border border-neutral-700/40 rounded-xl flex items-center justify-center text-neutral-500 text-xs">
-                📍 {placeName}
+              <div className="w-full h-24 bg-[#f3e7d3] border border-[#cbaf8b] rounded-2xl flex items-center justify-center text-[#8c6b47] text-xs italic">
+                🗺️ Charted within the boundaries of Austin, TX
               </div>
             )}
 
-            <div className="p-3 bg-violet-950/40 border border-violet-800/50 rounded-xl text-xs text-violet-200">
-              💡 <strong>Why this fits:</strong> {currentGuess.reason || 'Selected based on your preferences.'}
+            {/* Scroll Note */}
+            <div className="p-4 bg-[#f3e7d3]/90 border-l-4 border-[#8b4f26] rounded-r-xl shadow-sm text-sm text-[#4d3522] leading-relaxed">
+              <span className="font-sans font-bold text-[#8b4f26] block text-xs uppercase tracking-wider mb-1">
+                😼 Puss&apos;s Proclamation:
+              </span>
+              <p className="italic">&ldquo;{currentGuess.reason || 'A true haven matched to the desires you spoke of.'}&rdquo;</p>
             </div>
 
-            <div className="space-y-2 pt-2">
+            <div className="space-y-2.5 pt-1 font-sans">
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + (currentGuess.place?.address || 'Austin TX'))}`}
                 target="_blank"
                 rel="noreferrer"
-                className="block w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-semibold text-center text-sm rounded-xl transition shadow-lg shadow-emerald-600/20"
+                className="block w-full py-3.5 bg-gradient-to-r from-[#2e6b4d] to-[#25573e] hover:from-[#25573e] hover:to-[#1c432f] font-bold text-center text-sm rounded-xl transition shadow-md text-emerald-50 border border-emerald-400/40 cursor-pointer"
               >
-                Spot on! Let&apos;s Go →
+                Set Forth to the Haven →
               </a>
 
               <button
                 onClick={() => setScreen('REJECT')}
-                className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm font-medium rounded-xl transition cursor-pointer"
+                className="w-full py-3 bg-[#ede1ce] hover:bg-[#e2d2ba] text-[#59391e] hover:text-[#351e0e] text-xs tracking-wider uppercase font-semibold rounded-xl border border-[#cbaf8b] transition cursor-pointer"
               >
-                Not my vibe (Reject & refine)
+                ⚔️ Nay, Send Puss Back to the Streets
               </button>
             </div>
           </div>
         )}
 
-        {/* REJECT / FEEDBACK */}
+        {/* REJECT SCREEN: THE GRIEVANCE */}
         {!loading && screen === 'REJECT' && (
-          <div className="space-y-4">
+          <div className="space-y-5 max-w-lg mx-auto">
             <div>
-              <span className="text-xs uppercase tracking-wider text-rose-400 font-semibold">Refine Search</span>
-              <h2 className="text-lg font-bold mt-1">What was off about {placeName}?</h2>
-              <p className="text-xs text-neutral-400 mt-1">Pick a reason or type your feedback below:</p>
+              <span className="text-xs uppercase tracking-widest text-[#a84428] font-sans font-bold">
+                A Displeasing Match
+              </span>
+              <h2 className="text-xl sm:text-2xl font-bold mt-1 text-[#351e0e]">What displeases you about {placeName}?</h2>
+              <p className="text-xs text-[#7d5d3b] mt-1 italic">
+                State your grievance so Puss can sharpen his instincts and sniff out a finer spot:
+              </p>
             </div>
 
-            <div className="space-y-2">
-              {['Too crowded / loud', 'Too expensive', 'Wrong atmosphere', 'Looking for outdoor patio', 'Prefer activities / games'].map((reason, i) => (
+            <div className="space-y-2 font-sans">
+              {[
+                'Too crowded & noisy for my taste',
+                'Far too costly for humble travelers',
+                'The atmosphere feels uninspiring',
+                'I yearn for a breezier outdoor garden',
+                'I demand games, pastimes, and merriment'
+              ].map((reason, i) => (
                 <button
                   key={i}
                   onClick={() => handleReject(reason)}
-                  className="w-full p-3 text-left text-sm bg-neutral-800 hover:bg-neutral-700/80 rounded-xl border border-neutral-700/50 transition cursor-pointer"
+                  className="w-full p-3.5 text-left text-xs sm:text-sm bg-[#faf4e8] hover:bg-[#ebdcc7] hover:border-[#a88252] rounded-xl border border-[#d6c1a5] text-[#3c2817] font-medium transition cursor-pointer flex items-center gap-2.5 shadow-sm"
                 >
-                  👎 {reason}
+                  <span className="text-[#a84428]">🗡️</span>
+                  <span>{reason}</span>
                 </button>
               ))}
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 font-sans">
               <input
                 type="text"
-                placeholder="Or describe what you want instead..."
+                placeholder="Or decree what you desire instead..."
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                     handleReject(e.currentTarget.value.trim());
                   }
                 }}
-                className="w-full p-3 bg-neutral-800 border border-neutral-700 rounded-xl text-sm focus:outline-none focus:border-violet-500"
+                className="w-full p-3.5 bg-[#fdfaf5] border border-[#caa87d] rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#8b4f26] text-[#3c2817] placeholder-[#a68c71]"
               />
             </div>
+
+            <button
+              onClick={() => setScreen('GUESS')}
+              className="w-full py-2 text-xs text-[#8c6b47] hover:text-[#59391e] font-sans transition text-center"
+            >
+              ← Return to previous haven
+            </button>
           </div>
         )}
 
