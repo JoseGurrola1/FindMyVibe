@@ -322,7 +322,8 @@ _TIME = re.compile(
     r"|(?:this |next |on )?(?:mon|tues|wednes|thurs|fri|satur|sun)day"
     r"(?: (?:morning|afternoon|evening|night|brunch|lunch|dinner))?"
     r"|(?:after|before|around|at|by) \d{1,2}(?::\d{2})?\s*(?:am|pm)?"
-    r"|\d{1,2}(?::\d{2})?\s*(?:am|pm))\b",
+    r"|\d{1,2}(?::\d{2})?\s*(?:am|pm)"
+    r"|morning|afternoon|evening)\b",
     re.IGNORECASE,
 )
 _PLACE = re.compile(r"\b(?:in|near|around)\s+(.+)$", re.IGNORECASE)
@@ -341,7 +342,20 @@ def parse_intro_fallback(text):
 
     city, what = "", rest
     match = _PLACE.search(rest)
-    if match:
+    # Prefer a city after "in"/"near" ("Denver omelette in Austin" -> Austin).
+    known = None
+    if match and "," not in match.group(1):
+        inside = _find_known_city(match.group(1))
+        if inside:
+            known = (inside[0], match.start(), len(rest))
+    if not known and not (match and "," in match.group(1)):
+        known = _find_known_city(rest)
+    if known:
+        # A well-known city anywhere in the sentence: "Austin picnic evening"
+        city, start, end = known
+        what = " ".join((rest[:start] + " " + rest[end:]).split()).strip(" ,.;!-")
+        what = re.sub(r"\b(?:in|near|around)$", "", what).strip(" ,.;!-")
+    elif match:
         candidate = match.group(1).strip(" ,.;!-")
         if candidate and not candidate.lower().startswith(_NOT_A_CITY) and len(candidate.split()) <= 4:
             city = candidate
@@ -353,6 +367,21 @@ def parse_intro_fallback(text):
     if city and city.islower():
         city = city.title()
     return {"city": city, "what": what, "when": when}
+
+
+def _find_known_city(text):
+    """(formatted city, start, end) for the longest known city named in text."""
+    from known_cities import KNOWN_CITIES
+    low = text.lower()
+    for name in sorted(KNOWN_CITIES, key=len, reverse=True):
+        # Two-letter nicknames (LA, SF, DC) only count in capitals, so "la"
+        # in "la croix" or "dc" in prose don't trigger.
+        flags = 0 if len(name) <= 2 else re.IGNORECASE
+        target = name.upper() if len(name) <= 2 else name
+        m = re.search(rf"(?<![\w-]){re.escape(target)}(?![\w-])(?:,\s*[A-Za-z]{{2}}\b)?", text, flags)
+        if m:
+            return KNOWN_CITIES[name], m.start(), m.end()
+    return None
 
 
 def city_is_grounded(city, text):

@@ -34,8 +34,8 @@ def turn(**body):
 
 @pytest.mark.parametrize("text, city, what, when", [
     ("live music in Austin, TX tonight", "Austin, TX", "live music", "tonight"),
-    ("quiet bookstore in austin", "Austin", "quiet bookstore", ""),
-    ("tacos near Denver after 8pm", "Denver", "tacos", "after 8pm"),
+    ("quiet bookstore in austin", "Austin, TX", "quiet bookstore", ""),
+    ("tacos near Denver after 8pm", "Denver, CO", "tacos", "after 8pm"),
     ("Austin, TX", "Austin, TX", "", ""),
     ("ramen tomorrow night", "", "ramen", "tomorrow night"),
     ("coffee in a quiet place", "", "coffee in a quiet place", ""),
@@ -148,3 +148,24 @@ def test_nickname_place_trusted_but_no_place_still_dropped(monkeypatch):
 def test_mentions_place(text, named):
     from fallback import mentions_place
     assert mentions_place(text) is named
+
+
+@pytest.mark.parametrize("text, city, what, when", [
+    ("Austin Picnic evening", "Austin, TX", "Picnic", "evening"),          # city first, no "in"
+    ("ATX tacos tonight", "Austin, TX", "tacos", "tonight"),
+    ("pizza NYC friday", "New York, NY", "pizza", "friday"),
+    ("Chicago", "Chicago, IL", "", ""),
+    ("Denver omelette in Austin", "Austin, TX", "Denver omelette", ""),   # "in X" wins
+    ("jazz in Portland, ME", "Portland, ME", "jazz", ""),                 # explicit state kept
+    ("rooftop bar in Lisbon, Portugal", "Lisbon, Portugal", "rooftop bar", ""),  # not in the list
+    ("la croix tasting", "", "la croix tasting", ""),                      # lowercase "la" isn't LA
+])
+def test_fallback_finds_city_anywhere(text, city, what, when):
+    assert parse_intro_fallback(text) == {"city": city, "what": what, "when": when}
+
+
+def test_start_screen_works_when_gemini_is_down(monkeypatch):
+    monkeypatch.setattr(gemini_ai, "_generate", boom)
+    data = turn(intro="Austin Picnic evening", history=[])
+    assert data["action"] == "ask_question"
+    assert data["context"] == {"city": "Austin, TX", "what": "Picnic", "when": "evening"}

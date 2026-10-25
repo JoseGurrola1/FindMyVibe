@@ -1,0 +1,51 @@
+"""
+The 100 largest US cities (plus a few nicknames), used by the backup
+sentence parser to spot a city anywhere in "Austin picnic evening" when
+Gemini isn't available. Gemini handles everything else.
+"""
+
+KNOWN_CITIES = {
+    "new york": "New York, NY", "los angeles": "Los Angeles, CA", "chicago": "Chicago, IL",
+    "houston": "Houston, TX", "phoenix": "Phoenix, AZ", "philadelphia": "Philadelphia, PA",
+    "san antonio": "San Antonio, TX", "san diego": "San Diego, CA", "dallas": "Dallas, TX",
+    "jacksonville": "Jacksonville, FL", "fort worth": "Fort Worth, TX", "san jose": "San Jose, CA",
+    "austin": "Austin, TX", "charlotte": "Charlotte, NC", "columbus": "Columbus, OH",
+    "indianapolis": "Indianapolis, IN", "san francisco": "San Francisco, CA", "seattle": "Seattle, WA",
+    "denver": "Denver, CO", "oklahoma city": "Oklahoma City, OK", "nashville": "Nashville, TN",
+    "washington dc": "Washington, DC", "washington, dc": "Washington, DC", "el paso": "El Paso, TX",
+    "las vegas": "Las Vegas, NV", "boston": "Boston, MA", "detroit": "Detroit, MI",
+    "portland": "Portland, OR", "louisville": "Louisville, KY", "memphis": "Memphis, TN",
+    "baltimore": "Baltimore, MD", "milwaukee": "Milwaukee, WI", "albuquerque": "Albuquerque, NM",
+    "tucson": "Tucson, AZ", "fresno": "Fresno, CA", "sacramento": "Sacramento, CA",
+    "mesa": "Mesa, AZ", "atlanta": "Atlanta, GA", "kansas city": "Kansas City, MO",
+    "colorado springs": "Colorado Springs, CO", "omaha": "Omaha, NE", "raleigh": "Raleigh, NC",
+    "miami": "Miami, FL", "virginia beach": "Virginia Beach, VA", "long beach": "Long Beach, CA",
+    "oakland": "Oakland, CA", "minneapolis": "Minneapolis, MN", "bakersfield": "Bakersfield, CA",
+    "tulsa": "Tulsa, OK", "tampa": "Tampa, FL", "arlington": "Arlington, TX",
+    "aurora": "Aurora, CO", "wichita": "Wichita, KS", "cleveland": "Cleveland, OH",
+    "new orleans": "New Orleans, LA", "henderson": "Henderson, NV", "honolulu": "Honolulu, HI",
+    "anaheim": "Anaheim, CA", "orlando": "Orlando, FL", "lexington": "Lexington, KY",
+    "stockton": "Stockton, CA", "riverside": "Riverside, CA", "irvine": "Irvine, CA",
+    "corpus christi": "Corpus Christi, TX", "newark": "Newark, NJ", "santa ana": "Santa Ana, CA",
+    "cincinnati": "Cincinnati, OH", "pittsburgh": "Pittsburgh, PA", "saint paul": "Saint Paul, MN",
+    "st. paul": "Saint Paul, MN", "greensboro": "Greensboro, NC", "jersey city": "Jersey City, NJ",
+    "durham": "Durham, NC", "lincoln": "Lincoln, NE", "north las vegas": "North Las Vegas, NV",
+    "plano": "Plano, TX", "anchorage": "Anchorage, AK", "gilbert": "Gilbert, AZ",
+    "madison": "Madison, WI", "reno": "Reno, NV", "chandler": "Chandler, AZ",
+    "st. louis": "St. Louis, MO", "saint louis": "St. Louis, MO", "chula vista": "Chula Vista, CA",
+    "buffalo": "Buffalo, NY", "fort wayne": "Fort Wayne, IN", "lubbock": "Lubbock, TX",
+    "st. petersburg": "St. Petersburg, FL", "toledo": "Toledo, OH", "laredo": "Laredo, TX",
+    "port st. lucie": "Port St. Lucie, FL", "glendale": "Glendale, AZ", "irving": "Irving, TX",
+    "winston-salem": "Winston-Salem, NC", "chesapeake": "Chesapeake, VA", "garland": "Garland, TX",
+    "scottsdale": "Scottsdale, AZ", "boise": "Boise, ID", "hialeah": "Hialeah, FL",
+    "frisco": "Frisco, TX", "richmond": "Richmond, VA", "cape coral": "Cape Coral, FL",
+    "norfolk": "Norfolk, VA", "spokane": "Spokane, WA", "huntsville": "Huntsville, AL",
+    "santa clarita": "Santa Clarita, CA", "tacoma": "Tacoma, WA", "fremont": "Fremont, CA",
+    "mckinney": "McKinney, TX", "san bernardino": "San Bernardino, CA", "baton rouge": "Baton Rouge, LA",
+    "salt lake city": "Salt Lake City, UT", "providence": "Providence, RI", "des moines": "Des Moines, IA",
+    "birmingham": "Birmingham, AL", "savannah": "Savannah, GA", "charleston": "Charleston, SC",
+    # nicknames
+    "nyc": "New York, NY", "atx": "Austin, TX", "la": "Los Angeles, CA", "sf": "San Francisco, CA",
+    "philly": "Philadelphia, PA", "nola": "New Orleans, LA", "vegas": "Las Vegas, NV",
+    "dc": "Washington, DC", "chi-town": "Chicago, IL", "htx": "Houston, TX", "dfw": "Dallas, TX",
+}
