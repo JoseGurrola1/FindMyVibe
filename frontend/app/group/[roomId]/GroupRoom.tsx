@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import WalkingCat from '../../components/WalkingCat';
 
 interface Place {
   place_id?: string;
@@ -318,7 +319,10 @@ export default function GroupRoom() {
               </form>
             </>
           ) : (
-            <p className="text-center italic text-[#634931] py-8">Puss is preparing your question…</p>
+            <div className="text-center py-8 space-y-3">
+              <WalkingCat size={64} label="Puss is preparing your question" />
+              <p className="italic text-[#634931]">Puss is preparing your question…</p>
+            </div>
           )}
           {errorLine}
         </div>
@@ -349,7 +353,7 @@ export default function GroupRoom() {
   if (room.status === 'searching') {
     return shell(
       <div className="max-w-md mx-auto py-10 text-center space-y-4">
-        <div className="text-5xl animate-bounce" aria-hidden="true">🐾 🗺️</div>
+        <WalkingCat size={72} label="Puss is searching" />
         <h2 className="text-2xl font-bold text-[#59391e]">Puss is weighing everyone&apos;s wishes…</h2>
         <p className="text-sm italic text-[#8c6b47]">Scouting {room.city} for a spot the whole party will love.</p>
       </div>

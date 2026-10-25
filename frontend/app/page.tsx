@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import WalkingCat from './components/WalkingCat';
 
 interface HistoryItem {
   question: string;
@@ -167,10 +168,10 @@ export default function Home() {
         {/* LOADING: PUSS IS SCOUTING */}
         {loading && (
           <div className="py-16 text-center space-y-4">
-            <div className="text-5xl animate-bounce tracking-widest">🐾 🗡️</div>
+            <WalkingCat size={72} label="Puss is on his way" />
             <h2 className="text-2xl font-bold tracking-wide text-[#59391e]">Puss is exploring the realm...</h2>
             <p className="text-sm text-[#8c6b47] italic max-w-sm mx-auto">
-              Deciphering dusty tavern scrolls and scouting the streets of {cityLabel}...
+              Deciphering dusty tavern scrolls and scouting {city ? `the streets of ${cityLabel}` : 'the streets'}...
             </p>
           </div>
         )}

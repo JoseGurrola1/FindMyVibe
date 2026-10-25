@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Walking cat (components/WalkingCat.tsx): one step = 0.7s */
+.walking-cat .cat-leg,
+.walking-cat .cat-arm,
+.walking-cat .cat-tail,
+.walking-cat .cat-bob,
+.walking-cat .cat-shadow,
+.walking-cat .cat-head {
+  transform-box: view-box;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+.walking-cat .cat-leg-front { transform-origin: 43.5px 63px; animation-name: cat-stride; animation-duration: 0.7s; }
+.walking-cat .cat-leg-back  { transform-origin: 37.5px 63px; animation-name: cat-stride; animation-duration: 0.7s; animation-delay: -0.7s; }
+.walking-cat .cat-arm-front { transform-origin: 45px 45px; animation-name: cat-swing; animation-duration: 0.7s; animation-delay: -0.7s; }
+.walking-cat .cat-arm-back  { transform-origin: 40px 45px; animation-name: cat-swing; animation-duration: 0.7s; }
+.walking-cat .cat-bob       { animation-name: cat-bob; animation-duration: 0.35s; }
+.walking-cat .cat-shadow    { transform-origin: 40px 90px; animation-name: cat-shadow; animation-duration: 0.35s; }
+.walking-cat .cat-tail      { transform-origin: 29px 60px; animation-name: cat-tail; animation-duration: 1.4s; }
+.walking-cat .cat-head      { transform-origin: 46px 40px; animation-name: cat-nod; animation-duration: 0.7s; }
+
+@keyframes cat-stride { from { transform: rotate(24deg); } to { transform: rotate(-24deg); } }
+@keyframes cat-swing  { from { transform: rotate(22deg); } to { transform: rotate(-22deg); } }
+@keyframes cat-bob    { from { transform: translateY(0); } to { transform: translateY(-1.8px); } }
+@keyframes cat-shadow { from { transform: scaleX(1); } to { transform: scaleX(0.88); } }
+@keyframes cat-tail   { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }
+@keyframes cat-nod    { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .walking-cat * { animation: none !important; }
+}
