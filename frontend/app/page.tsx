@@ -227,6 +227,22 @@ export default function Home() {
             >
               Embark on the Quest →
             </button>
+
+            {/* Group Mode — separate journey, so Solo Mode stays unchanged */}
+            <div className="flex items-center gap-3 pt-1" aria-hidden="true">
+              <span className="h-px flex-1 bg-[#d6c1a5]" />
+              <span className="text-xs font-sans uppercase tracking-widest text-[#a68c71]">Or gather your party</span>
+              <span className="h-px flex-1 bg-[#d6c1a5]" />
+            </div>
+            <a
+              href="/group"
+              className="block w-full py-3.5 bg-[#f3e7d3] hover:bg-[#ead6b8] text-[#59391e] font-sans font-bold text-sm tracking-wider uppercase rounded-xl border border-[#cbaf8b] transition shadow-sm"
+            >
+              👥 Begin a Group Quest →
+            </a>
+            <p className="text-xs text-[#8c6b47] italic">
+              Invite companions to share their own preferences and discover an adventure together.
+            </p>
           </div>
         )}
 
