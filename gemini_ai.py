@@ -45,6 +45,24 @@ PRIORITY: What the user wants NOW matters most.
 """
 
 
+def _context_block(context):
+    """Describe the player's start-screen answers (city, what, when) for prompts."""
+    context = context or {}
+    lines = []
+    if context.get("city"):
+        lines.append(f"- City: {context['city']}")
+    if context.get("what"):
+        lines.append(f"- What they're in the mood for: {context['what']}")
+    if context.get("when"):
+        lines.append(f"- When they're going: {context['when']}")
+    if not lines:
+        return ""
+    return (
+        "Player's starting details (given before the first question; later\n"
+        "answers may refine or override them):\n" + "\n".join(lines) + "\n"
+    )
+
+
 # Give up on Gemini after this long and use the built-in fallback instead.
 GEMINI_TIMEOUT_MS = 15_000
 
@@ -91,7 +109,7 @@ def _generate(prompt, schema):
     return schema.model_validate_json(response.text)
 
 
-def ask_question(history, rejection_feedback=None):
+def ask_question(history, rejection_feedback=None, context=None):
     """Generate a question using previous answers and rejections."""
 
     rejection_feedback = rejection_feedback or []
@@ -104,6 +122,7 @@ def ask_question(history, rejection_feedback=None):
     Your goal is to discover the user's ideal real-world
     place or activity.
 
+    {_context_block(context)}
     Previous questions and answers:
     {json.dumps(history)}
 
@@ -120,6 +139,9 @@ def ask_question(history, rejection_feedback=None):
     - If a place was rejected, focus on learning why
       other locations might be a better fit.
     - Keep the question short and conversational.
+    - Never ask which city; it is already chosen.
+    - Don't re-ask anything the starting details already answer
+      (e.g. what they want or when they're going); build on it.
     """
 
     try:
@@ -133,14 +155,16 @@ def ask_question(history, rejection_feedback=None):
     except Exception:
         log.exception("Gemini question failed; using fallback.")
 
-    return fallback_question(history, rejection_feedback)
+    return fallback_question(history, rejection_feedback, context)
 
 
-def create_search_query(history, rejection_feedback=None):
+def create_search_query(history, rejection_feedback=None, context=None):
     """Turn user answers into a Google Maps search query."""
 
     prompt = f"""
     {PREFERENCE_RULES}
+
+    {_context_block(context)}
 
     Conversation history (oldest first, newest last):
 {json.dumps(history)}
@@ -172,10 +196,10 @@ IMPORTANT:
     except Exception:
         log.exception("Gemini search query failed; using fallback.")
 
-    return fallback_search_query(history, rejection_feedback)
+    return fallback_search_query(history, rejection_feedback, context)
 
 
-def choose_place(history, places, rejected_ids):
+def choose_place(history, places, rejected_ids, context=None):
     """Choose a real candidate, never invent a location."""
 
     candidates = [
@@ -195,6 +219,7 @@ def choose_place(history, places, rejected_ids):
     Your goal is to select the real location that best
     matches the user's preferences.
 
+    {_context_block(context)}
     User answers:
     {json.dumps(history)}
 
@@ -236,4 +261,4 @@ def choose_place(history, places, rejected_ids):
     except Exception:
         log.exception("Gemini place choice failed; using fallback.")
 
-    return fallback_choose(history, places, rejected_ids)
+    return fallback_choose(history, places, rejected_ids, context)

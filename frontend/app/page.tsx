@@ -30,6 +30,13 @@ export default function Home() {
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Start-screen answers: where (required), what and when (optional).
+  const [city, setCity] = useState('');
+  const [what, setWhat] = useState('');
+  const [when, setWhen] = useState('');
+  // Short name for display, e.g. "Denver, CO" -> "Denver".
+  const cityLabel = city.trim() ? city.trim().split(',')[0].trim() : 'Your City';
+
   // Returns true if the game moved forward, false if the request failed
   // (so callers only record an answer once the server accepted it).
   const advanceGame = async (
@@ -45,7 +52,9 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          city: 'Austin TX',
+          city: city.trim(),
+          what: what.trim(),
+          when: when.trim(),
           history: newHistory,
           rejected_ids: newRejectedIds,
           rejection_feedback: newFeedback,
@@ -92,6 +101,7 @@ export default function Home() {
   };
 
   const handleStart = () => {
+    if (!city.trim() || loading) return;
     setHistory([]);
     setRejectedIds([]);
     setRejectionFeedback([]);
@@ -144,7 +154,7 @@ export default function Home() {
             <div className="text-5xl animate-bounce tracking-widest">🐾 🗡️</div>
             <h2 className="text-2xl font-bold tracking-wide text-[#59391e]">Puss is exploring the realm...</h2>
             <p className="text-sm text-[#8c6b47] italic max-w-sm mx-auto">
-              Deciphering dusty tavern scrolls and scouting the streets of Austin...
+              Deciphering dusty tavern scrolls and scouting the streets of {cityLabel}...
             </p>
           </div>
         )}
@@ -157,7 +167,7 @@ export default function Home() {
             </div>
             
             <div className="space-y-1">
-              <span className="text-xs uppercase tracking-[0.25em] text-[#936d3f] font-sans font-bold">The Chronicles of Austin</span>
+              <span className="text-xs uppercase tracking-[0.25em] text-[#936d3f] font-sans font-bold">The Chronicles of {cityLabel}</span>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-[#3a2211] tracking-wide">Find My Vibe</h1>
               <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-[#b58c56] to-transparent mx-auto mt-2" />
             </div>
@@ -166,9 +176,40 @@ export default function Home() {
               &ldquo;Halt, noble traveler! Tell me what atmosphere your heart longs for tonight, and I, Puss in Boots, shall guide your path to glory!&rdquo;
             </p>
 
+            {/* Where / What / When */}
+            <form
+              className="space-y-3 text-left font-sans"
+              onSubmit={(e) => { e.preventDefault(); handleStart(); }}
+            >
+              {[
+                { id: 'where', label: 'Where?', hint: 'Required', value: city, set: setCity, placeholder: 'e.g. Austin, TX', max: 80 },
+                { id: 'what', label: 'What?', hint: 'Optional', value: what, set: setWhat, placeholder: 'e.g. tacos, live music, a quiet bookstore', max: 120 },
+                { id: 'when', label: 'When?', hint: 'Optional', value: when, set: setWhen, placeholder: 'e.g. tonight after 8pm, Saturday brunch', max: 120 },
+              ].map((f) => (
+                <label key={f.id} htmlFor={f.id} className="block">
+                  <span className="flex items-baseline justify-between mb-1">
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#8b4f26]">{f.label}</span>
+                    <span className="text-[11px] text-[#a68c71] italic">{f.hint}</span>
+                  </span>
+                  <input
+                    id={f.id}
+                    type="text"
+                    value={f.value}
+                    maxLength={f.max}
+                    placeholder={f.placeholder}
+                    onChange={(e) => f.set(e.target.value)}
+                    autoComplete="off"
+                    className="w-full p-3 bg-[#fdfaf5] border border-[#caa87d] rounded-xl text-sm focus:outline-none focus:border-[#8b4f26] text-[#3c2817] placeholder-[#b8a58f]"
+                  />
+                </label>
+              ))}
+              <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+            </form>
+
             <button
               onClick={handleStart}
-              className="w-full py-4 bg-gradient-to-r from-[#8b4f26] via-[#a35e2e] to-[#8b4f26] hover:from-[#75411d] hover:to-[#75411d] font-sans font-bold text-sm tracking-wider uppercase rounded-xl transition duration-200 shadow-lg shadow-amber-900/20 active:scale-[0.98] text-[#fcf8f0] border border-[#d4a86a] cursor-pointer"
+              disabled={!city.trim()}
+              className="w-full py-4 disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-[#8b4f26] via-[#a35e2e] to-[#8b4f26] hover:from-[#75411d] hover:to-[#75411d] font-sans font-bold text-sm tracking-wider uppercase rounded-xl transition duration-200 shadow-lg shadow-amber-900/20 active:scale-[0.98] text-[#fcf8f0] border border-[#d4a86a] cursor-pointer"
             >
               Embark on the Quest →
             </button>
@@ -268,7 +309,7 @@ export default function Home() {
                 👑 The Destination Revealed
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold mt-1 text-[#351e0e]">{placeName}</h2>
-              <p className="text-xs text-[#8c6b47] mt-0.5 italic">{currentGuess.place?.category || 'Austin Realm'}</p>
+              <p className="text-xs text-[#8c6b47] mt-0.5 italic">{currentGuess.place?.category || `${cityLabel} Realm`}</p>
             </div>
 
             {currentGuess.place?.thumbnail ? (
@@ -279,7 +320,7 @@ export default function Home() {
               />
             ) : (
               <div className="w-full h-24 bg-[#f3e7d3] border border-[#cbaf8b] rounded-2xl flex items-center justify-center text-[#8c6b47] text-xs italic">
-                🗺️ Charted within the boundaries of Austin, TX
+                🗺️ Charted within the boundaries of {city.trim()}
               </div>
             )}
 
@@ -293,7 +334,7 @@ export default function Home() {
 
             <div className="space-y-2.5 pt-1 font-sans">
               <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + (currentGuess.place?.address || 'Austin TX'))}`}
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + (currentGuess.place?.address || city.trim()))}`}
                 target="_blank"
                 rel="noreferrer"
                 className="block w-full py-3.5 bg-gradient-to-r from-[#2e6b4d] to-[#25573e] hover:from-[#25573e] hover:to-[#1c432f] font-bold text-center text-sm rounded-xl transition shadow-md text-emerald-50 border border-emerald-400/40 cursor-pointer"

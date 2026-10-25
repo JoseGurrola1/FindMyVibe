@@ -88,10 +88,20 @@ def asked_questions(history):
     return {_norm(item.get("question")) for item in history}
 
 
-def fallback_question(history, rejection_feedback=None):
+# Built-in questions the start screen's What / When boxes already answer.
+WHAT_QUESTION = "What kind of outing are you craving?"
+WHEN_QUESTION = "When are you heading out?"
+
+
+def fallback_question(history, rejection_feedback=None, context=None):
     """Return the next unasked built-in question."""
     rejection_feedback = rejection_feedback or []
+    context = context or {}
     asked = asked_questions(history)
+    if context.get("what"):
+        asked.add(_norm(WHAT_QUESTION))
+    if context.get("when"):
+        asked.add(_norm(WHEN_QUESTION))
 
     banks = [QUESTION_BANK]
     # Once the opening questions are done and the user has rejected a
@@ -181,11 +191,13 @@ def _match(text, table, limit):
     return found[:limit]
 
 
-def fallback_search_query(history, rejection_feedback=None):
+def fallback_search_query(history, rejection_feedback=None, context=None):
     """Build a simple Google Maps query from keywords in the answers."""
     rejection_feedback = rejection_feedback or []
+    context = context or {}
     text = " ".join(
-        [_norm(item.get("answer")) for item in history]
+        [_norm(context.get("what")), _norm(context.get("when"))]
+        + [_norm(item.get("answer")) for item in history]
         + [_norm(reason) for reason in rejection_feedback]
     )
 
@@ -208,7 +220,7 @@ def is_rejected(place, rejected_ids):
     )
 
 
-def fallback_choose(history, places, rejected_ids):
+def fallback_choose(history, places, rejected_ids, context=None):
     """
     Pick the best-rated non-rejected place, with a small bonus for places
     whose name/category mention something the user asked for.
@@ -217,7 +229,7 @@ def fallback_choose(history, places, rejected_ids):
     if not candidates:
         return None
 
-    wanted = fallback_search_query(history).split()
+    wanted = fallback_search_query(history, None, context).split()
 
     def score(place):
         rating = place.get("rating") or 0

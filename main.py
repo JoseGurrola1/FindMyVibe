@@ -124,7 +124,10 @@ class Answer(BaseModel):
 
 
 class GameRequest(BaseModel):
-    city: str = "Austin TX"
+    # Start-screen answers: where (city), and optional what / when.
+    city: str = Field("Austin TX", max_length=80)
+    what: str = Field("", max_length=120)
+    when: str = Field("", max_length=120)
     history: list[Answer] = Field(default_factory=list)
     rejected_ids: list[str] = Field(default_factory=list)
     rejection_feedback: list[str] = Field(default_factory=list)
@@ -138,6 +141,10 @@ def next_turn(game: GameRequest):
     ]
     rejected = set(game.rejected_ids)
 
+    # Blank city falls back to Austin so older clients keep working.
+    city = game.city.strip() or "Austin TX"
+    context = {"city": city, "what": game.what.strip(), "when": game.when.strip()}
+
     try:
         # Initial round: ask 3 questions.
         # Each rejected guess adds one follow-up question.
@@ -146,7 +153,8 @@ def next_turn(game: GameRequest):
         if len(history) < required_answers:
             question = ask_question(
                 history,
-                game.rejection_feedback
+                game.rejection_feedback,
+                context,
             )
 
             return {
@@ -155,23 +163,23 @@ def next_turn(game: GameRequest):
             }
 
         # Generate a search query using preferences
-        search_query = create_search_query(history, game.rejection_feedback)
+        search_query = create_search_query(history, game.rejection_feedback, context)
 
         # Retrieve real places (with fallbacks)
-        places = find_places(search_query, game.city)
+        places = find_places(search_query, city)
 
         # Pick a non-rejected place (Gemini, or the built-in fallback)
-        guess = choose_place(history, places, rejected)
+        guess = choose_place(history, places, rejected, context)
 
         # Everything from that search was rejected: widen the net once.
         if guess is None and search_query != BROAD_QUERY:
-            places = find_places(BROAD_QUERY, game.city)
-            guess = choose_place(history, places, rejected)
+            places = find_places(BROAD_QUERY, city)
+            guess = choose_place(history, places, rejected, context)
 
         if guess is None:
             return {
                 "action": "no_match",
-                "message": "No matching places found."
+                "message": f"No matching places found in {city}."
             }
 
         return {
@@ -185,5 +193,5 @@ def next_turn(game: GameRequest):
         log.exception("Game turn failed; sending a fallback question.")
         return {
             "action": "ask_question",
-            **fallback_question(history, game.rejection_feedback)
+            **fallback_question(history, game.rejection_feedback, context)
         }
