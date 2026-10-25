@@ -8,6 +8,7 @@ Nothing here calls an external API.
 
 import json
 import math
+import re
 from pathlib import Path
 
 
@@ -25,6 +26,7 @@ QUESTION_BANK = [
             "Arts, culture or museums",
             "Games, music or nightlife",
         ],
+        "placeholder": "Be specific, e.g. 'axe throwing' or 'ramen'",
     },
     {
         "question": "Pick a vibe:",
@@ -34,22 +36,27 @@ QUESTION_BANK = [
             "Quirky and unusual",
             "Romantic",
         ],
+        "placeholder": "Describe it, e.g. 'dim lights, jazz, low-key'",
     },
     {
         "question": "What's the budget looking like?",
         "options": ["Free or cheap", "Moderate", "Treat myself"],
+        "placeholder": "Name a number, e.g. 'under $20 a person'",
     },
     {
         "question": "Indoors or outdoors?",
         "options": ["Indoors", "Outdoors", "Either works"],
+        "placeholder": "e.g. 'a shady patio if it's not too hot'",
     },
     {
         "question": "Who's coming with you?",
         "options": ["Just me", "A date", "Friends", "Family with kids"],
+        "placeholder": "e.g. 'a group of 6, one vegetarian'",
     },
     {
         "question": "When are you heading out?",
         "options": ["Morning", "Afternoon", "Evening", "Late night"],
+        "placeholder": "e.g. 'Saturday around 2pm'",
     },
 ]
 
@@ -63,10 +70,12 @@ REJECTION_BANK = [
             "More hands-on things to do",
             "A totally different kind of place",
         ],
+        "placeholder": "Say what to change, e.g. 'closer and less pricey'",
     },
     {
         "question": "Should I stay close to that idea or switch it up?",
         "options": ["Similar, just a better fit", "Something completely different"],
+        "placeholder": "e.g. 'same vibe, but with live music'",
     },
     {
         "question": "What matters most for the next guess?",
@@ -76,6 +85,7 @@ REJECTION_BANK = [
             "Easy and low-key",
             "Good for a group",
         ],
+        "placeholder": "e.g. 'good for a first date'",
     },
 ]
 
@@ -119,8 +129,19 @@ def fallback_question(history, rejection_feedback=None, context=None):
     return {
         "question": f"Question {n}: which sounds best right now?",
         "options": ["Somewhere new", "An old favorite type of place", "Surprise me"],
+        "placeholder": "e.g. 'something I can't do back home'",
         "fallback": True,
     }
+
+
+# Hint for the "type your own answer" box when a question doesn't have one.
+DEFAULT_PLACEHOLDER = "Not listed? Be specific, e.g. 'quiet patio with tacos'"
+
+
+def clean_placeholder(text):
+    """Keep a short, single-line hint; otherwise use the default."""
+    text = " ".join(str(text or "").split())
+    return text if 3 <= len(text) <= 70 else DEFAULT_PLACEHOLDER
 
 
 def validate_question(data, history):
@@ -149,7 +170,11 @@ def validate_question(data, history):
     if len(options) < 2:
         return None
 
-    return {"question": question, "options": options}
+    return {
+        "question": question,
+        "options": options,
+        "placeholder": clean_placeholder(data.get("placeholder")),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -280,3 +305,78 @@ def offline_places(city):
     except (OSError, ValueError):
         return []
     return [{**p, "source": "offline"} for p in places if p.get("name")]
+
+
+# ---------------------------------------------------------------------------
+# Start-screen sentence -> city / what / when (used when Gemini is down)
+# ---------------------------------------------------------------------------
+
+
+_TIME = re.compile(
+    r"\b(?:tonight|today|tomorrow(?: (?:morning|afternoon|evening|night))?"
+    r"|this (?:morning|afternoon|evening|weekend|week)|right now|late night"
+    r"|(?:this |next |on )?(?:mon|tues|wednes|thurs|fri|satur|sun)day"
+    r"(?: (?:morning|afternoon|evening|night|brunch|lunch|dinner))?"
+    r"|(?:after|before|around|at|by) \d{1,2}(?::\d{2})?\s*(?:am|pm)?"
+    r"|\d{1,2}(?::\d{2})?\s*(?:am|pm))\b",
+    re.IGNORECASE,
+)
+_PLACE = re.compile(r"\b(?:in|near|around)\s+(.+)$", re.IGNORECASE)
+_NOT_A_CITY = ("a ", "an ", "the ", "my ", "some ", "somewhere", "town", "the city")
+
+
+def parse_intro_fallback(text):
+    """
+    Best-effort split of e.g. "live music in Austin, TX tonight" into
+    {"city": "Austin, TX", "what": "live music", "when": "tonight"}.
+    City is "" when none is found.
+    """
+    text = " ".join(str(text or "").split())
+    when = ", ".join(m.group(0) for m in _TIME.finditer(text))
+    rest = " ".join(_TIME.sub(" ", text).split()).strip(" ,.;!-")
+
+    city, what = "", rest
+    match = _PLACE.search(rest)
+    if match:
+        candidate = match.group(1).strip(" ,.;!-")
+        if candidate and not candidate.lower().startswith(_NOT_A_CITY) and len(candidate.split()) <= 4:
+            city = candidate
+            what = rest[: match.start()].strip(" ,.;!-")
+    elif "," in rest and len(rest.split()) <= 4:
+        # Just a place, e.g. "Austin, TX"
+        city, what = rest, ""
+
+    if city and city.islower():
+        city = city.title()
+    return {"city": city, "what": what, "when": when}
+
+
+def city_is_grounded(city, text):
+    """
+    True if the city plausibly comes from the player's own words (guards
+    against the model inventing a city). Accepts "NYC" -> "New York, NY",
+    "Philly" -> "Philadelphia, PA".
+    """
+    words = re.findall(r"[a-z]+", _norm(text))
+    name = re.findall(r"[a-z]+", _norm(str(city).split(",")[0]))
+    if not name or not words:
+        return False
+    initials = "".join(w[0] for w in name)
+    for w in words:
+        if len(initials) >= 2 and w.startswith(initials):
+            return True
+        for n in name:
+            if len(n) >= 3 and (w == n or (len(w) >= 4 and len(n) >= 4 and w[:4] == n[:4])):
+                return True
+    return False
+
+
+def mentions_place(text):
+    """
+    Did the player name some place ("in ATX", "near the Big Apple")?
+    Generic phrases like "in a quiet place" don't count.
+    """
+    if parse_intro_fallback(text)["city"]:
+        return True
+    match = _PLACE.search(" ".join(str(text or "").split()))
+    return bool(match and re.search(r"\b[A-Z][a-zA-Z]", match.group(1)))

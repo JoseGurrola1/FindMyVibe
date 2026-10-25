@@ -12,6 +12,9 @@ from fallback import (
     fallback_choose,
     validate_question,
     is_rejected,
+    parse_intro_fallback,
+    city_is_grounded,
+    mentions_place,
 )
 
 load_dotenv()
@@ -82,6 +85,14 @@ else:
 class Question(BaseModel):
     question: str
     options: list[str]
+    # Short hint shown in the "type your own answer" box.
+    placeholder: str = ""
+
+
+class IntroParse(BaseModel):
+    city: str
+    what: str
+    when: str
 
 
 class SearchPlan(BaseModel):
@@ -107,6 +118,41 @@ def _generate(prompt, schema):
         ),
     )
     return schema.model_validate_json(response.text)
+
+
+def parse_intro(text):
+    """
+    Split the start-screen sentence into {"city", "what", "when"}.
+    Uses Gemini, falling back to simple pattern matching. "city" is ""
+    if the player didn't name a place (we never guess one).
+    """
+    text = " ".join(str(text or "").split())[:200]
+    prompt = f"""
+    A player typed this to start a place-finding game:
+    {json.dumps(text)}
+
+    Extract:
+    - city: the city or town they named, formatted like "Austin, TX" or
+      "Paris, France" when the state/country is obvious. If they named a
+      neighborhood or area, put the city here and keep the neighborhood in
+      "what". Use "" if no place is named. NEVER guess a city.
+    - what: what they want to do or find (e.g. "live music", "tacos").
+      "" if not said.
+    - when: when they're going (e.g. "tonight after 8pm"). "" if not said.
+    """
+    try:
+        parsed = _generate(prompt, IntroParse)
+        city = parsed.city.strip()[:80]
+        # Drop a city the model may have invented: keep it only if it matches
+        # the player's words, or they clearly named some place ("in ATX").
+        if city and not (city_is_grounded(city, text) or mentions_place(text)):
+            log.warning("Ignoring city %r not found in the player's text.", city)
+            city = ""
+        return {"city": city, "what": parsed.what.strip()[:120], "when": parsed.when.strip()[:120]}
+    except Exception:
+        log.exception("Gemini intro parsing failed; using fallback.")
+    parsed = parse_intro_fallback(text)
+    return {k: v[:120] for k, v in parsed.items()}
 
 
 def ask_question(history, rejection_feedback=None, context=None):
@@ -139,6 +185,10 @@ def ask_question(history, rejection_feedback=None, context=None):
     - If a place was rejected, focus on learning why
       other locations might be a better fit.
     - Keep the question short and conversational.
+    - Also give a "placeholder": a short hint (under 60 characters) for
+      players who'd rather type their own answer, nudging them to be
+      specific with a concrete example, e.g. "Be specific, e.g. 'rooftop
+      bar with a view'". Match it to this question.
     - Never ask which city; it is already chosen.
     - Don't re-ask anything the starting details already answer
       (e.g. what they want or when they're going); build on it.

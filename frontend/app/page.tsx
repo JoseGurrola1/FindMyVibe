@@ -25,24 +25,27 @@ export default function Home() {
   const [rejectedIds, setRejectedIds] = useState<string[]>([]);
   const [rejectionFeedback, setRejectionFeedback] = useState<string[]>([]);
 
-  const [currentQuestion, setCurrentQuestion] = useState<{ question: string; options?: string[] } | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<{ question: string; options?: string[]; placeholder?: string } | null>(null);
   const [currentGuess, setCurrentGuess] = useState<{ place?: Place; reason?: string } | null>(null);
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Start-screen answers: where (required), what and when (optional).
-  const [city, setCity] = useState('');
-  const [what, setWhat] = useState('');
-  const [when, setWhen] = useState('');
+  // Start screen: one sentence with what / where / when, e.g.
+  // "live music in Austin tonight". The server splits it into gameContext.
+  const [intro, setIntro] = useState('');
+  const [startError, setStartError] = useState('');
+  const [gameContext, setGameContext] = useState<{ city: string; what: string; when: string } | null>(null);
+  const city = gameContext?.city || '';
   // Short name for display, e.g. "Denver, CO" -> "Denver".
-  const cityLabel = city.trim() ? city.trim().split(',')[0].trim() : 'Your City';
+  const cityLabel = city ? city.split(',')[0].trim() : 'Your City';
 
   // Returns true if the game moved forward, false if the request failed
   // (so callers only record an answer once the server accepted it).
   const advanceGame = async (
     newHistory: HistoryItem[],
     newRejectedIds: string[],
-    newFeedback: string[]
+    newFeedback: string[],
+    introText?: string
   ): Promise<boolean> => {
     setLoading(true);
     try {
@@ -52,9 +55,10 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          city: city.trim(),
-          what: what.trim(),
-          when: when.trim(),
+          // First turn sends the sentence; later turns send what the server parsed.
+          ...(introText
+            ? { intro: introText }
+            : { city: gameContext?.city, what: gameContext?.what, when: gameContext?.when }),
           history: newHistory,
           rejected_ids: newRejectedIds,
           rejection_feedback: newFeedback,
@@ -73,11 +77,18 @@ export default function Home() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
+      if (data.context) setGameContext(data.context);
 
-      if (data.action === 'ask_question') {
+      if (data.action === 'need_city') {
+        // Couldn't find a city in the sentence: ask for one on the start screen.
+        setStartError(data.message || 'Add a city, e.g. "tacos in Austin, TX".');
+        setScreen('START');
+        return false;
+      } else if (data.action === 'ask_question') {
         setCurrentQuestion({
           question: data.question,
           options: data.options || [],
+          placeholder: data.placeholder,
         });
         setScreen('QUESTION');
       } else if (data.action === 'guess') {
@@ -101,11 +112,13 @@ export default function Home() {
   };
 
   const handleStart = () => {
-    if (!city.trim() || loading) return;
+    if (!intro.trim() || loading) return;
+    setStartError('');
+    setGameContext(null);
     setHistory([]);
     setRejectedIds([]);
     setRejectionFeedback([]);
-    advanceGame([], [], []);
+    advanceGame([], [], [], intro.trim());
   };
 
   const handleAnswer = async (answer: string) => {
@@ -176,39 +189,40 @@ export default function Home() {
               &ldquo;Halt, noble traveler! Tell me what atmosphere your heart longs for tonight, and I, Puss in Boots, shall guide your path to glory!&rdquo;
             </p>
 
-            {/* Where / What / When */}
+            {/* One box: what, where & when */}
             <form
-              className="space-y-3 text-left font-sans"
+              className="space-y-2 text-left font-sans"
               onSubmit={(e) => { e.preventDefault(); handleStart(); }}
             >
-              {[
-                { id: 'where', label: 'Where?', hint: 'Required', value: city, set: setCity, placeholder: 'e.g. Austin, TX', max: 80 },
-                { id: 'what', label: 'What?', hint: 'Optional', value: what, set: setWhat, placeholder: 'e.g. tacos, live music, a quiet bookstore', max: 120 },
-                { id: 'when', label: 'When?', hint: 'Optional', value: when, set: setWhen, placeholder: 'e.g. tonight after 8pm, Saturday brunch', max: 120 },
-              ].map((f) => (
-                <label key={f.id} htmlFor={f.id} className="block">
-                  <span className="flex items-baseline justify-between mb-1">
-                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#8b4f26]">{f.label}</span>
-                    <span className="text-[11px] text-[#a68c71] italic">{f.hint}</span>
-                  </span>
-                  <input
-                    id={f.id}
-                    type="text"
-                    value={f.value}
-                    maxLength={f.max}
-                    placeholder={f.placeholder}
-                    onChange={(e) => f.set(e.target.value)}
-                    autoComplete="off"
-                    className="w-full p-3 bg-[#fdfaf5] border border-[#caa87d] rounded-xl text-sm focus:outline-none focus:border-[#8b4f26] text-[#3c2817] placeholder-[#b8a58f]"
-                  />
-                </label>
-              ))}
+              <label htmlFor="quest" className="sr-only">What, where and when</label>
+              <textarea
+                id="quest"
+                rows={2}
+                value={intro}
+                maxLength={200}
+                placeholder="What, where & when? e.g. live music in Austin tonight"
+                onChange={(e) => { setIntro(e.target.value); setStartError(''); }}
+                autoComplete="off"
+                onKeyDown={(e) => {
+                  // Enter starts the quest (it's one sentence, so no line breaks).
+                  if (e.key === 'Enter') { e.preventDefault(); handleStart(); }
+                }}
+                aria-describedby="quest-hint"
+                className="w-full resize-none leading-snug p-3.5 bg-[#fdfaf5] border border-[#caa87d] rounded-xl text-sm focus:outline-none focus:border-[#8b4f26] text-[#3c2817] placeholder-[#b8a58f]"
+              />
+              <p
+                id="quest-hint"
+                role={startError ? 'alert' : undefined}
+                className={`text-xs px-1 ${startError ? 'text-[#a3331f] font-semibold' : 'text-[#a68c71] italic'}`}
+              >
+                {startError || 'Name a city so Puss knows where to look.'}
+              </p>
               <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
             </form>
 
             <button
               onClick={handleStart}
-              disabled={!city.trim()}
+              disabled={!intro.trim()}
               className="w-full py-4 disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-[#8b4f26] via-[#a35e2e] to-[#8b4f26] hover:from-[#75411d] hover:to-[#75411d] font-sans font-bold text-sm tracking-wider uppercase rounded-xl transition duration-200 shadow-lg shadow-amber-900/20 active:scale-[0.98] text-[#fcf8f0] border border-[#d4a86a] cursor-pointer"
             >
               Embark on the Quest →
@@ -281,7 +295,7 @@ export default function Home() {
                 <div className="flex gap-2 font-sans">
                   <input
                     type="text"
-                    placeholder="Whisper a custom answer..."
+                    placeholder={currentQuestion.placeholder || "Not listed? Be specific, e.g. 'quiet patio with tacos'"}
                     value={customInput}
                     onChange={(e) => setCustomInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && customInput.trim() && handleAnswer(customInput.trim())}
@@ -320,7 +334,7 @@ export default function Home() {
               />
             ) : (
               <div className="w-full h-24 bg-[#f3e7d3] border border-[#cbaf8b] rounded-2xl flex items-center justify-center text-[#8c6b47] text-xs italic">
-                🗺️ Charted within the boundaries of {city.trim()}
+                🗺️ Charted within the boundaries of {city}
               </div>
             )}
 
@@ -334,7 +348,7 @@ export default function Home() {
 
             <div className="space-y-2.5 pt-1 font-sans">
               <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + (currentGuess.place?.address || city.trim()))}`}
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ' ' + (currentGuess.place?.address || city))}`}
                 target="_blank"
                 rel="noreferrer"
                 className="block w-full py-3.5 bg-gradient-to-r from-[#2e6b4d] to-[#25573e] hover:from-[#25573e] hover:to-[#1c432f] font-bold text-center text-sm rounded-xl transition shadow-md text-emerald-50 border border-emerald-400/40 cursor-pointer"
@@ -387,7 +401,7 @@ export default function Home() {
             <div className="pt-2 font-sans">
               <input
                 type="text"
-                placeholder="Or decree what you desire instead..."
+                placeholder="Tell Puss what was off, e.g. 'too loud, want a patio'"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                     handleReject(e.currentTarget.value.trim());

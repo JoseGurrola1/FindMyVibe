@@ -9,7 +9,8 @@ from places import get_places
 from gemini_ai import (
     ask_question,
     create_search_query,
-    choose_place
+    choose_place,
+    parse_intro,
 )
 from fallback import fallback_question, offline_places
 from ratelimit import limiters_from_env
@@ -124,7 +125,10 @@ class Answer(BaseModel):
 
 
 class GameRequest(BaseModel):
-    # Start-screen answers: where (city), and optional what / when.
+    # First turn: the start-screen sentence, e.g. "tacos in Austin tonight".
+    # The reply includes the parsed "context" (city / what / when), which
+    # the frontend sends back as the fields below on every later turn.
+    intro: str = Field("", max_length=200)
     city: str = Field("Austin TX", max_length=80)
     what: str = Field("", max_length=120)
     when: str = Field("", max_length=120)
@@ -141,9 +145,22 @@ def next_turn(game: GameRequest):
     ]
     rejected = set(game.rejected_ids)
 
-    # Blank city falls back to Austin so older clients keep working.
-    city = game.city.strip() or "Austin TX"
-    context = {"city": city, "what": game.what.strip(), "when": game.when.strip()}
+    if game.intro.strip():
+        context = parse_intro(game.intro)
+        if not context["city"]:
+            return {
+                "action": "need_city",
+                "message": "Which city should Puss search? Add one, e.g. \"tacos in Austin, TX\".",
+                "context": context,
+            }
+    else:
+        # Blank city falls back to Austin so older clients keep working.
+        context = {
+            "city": game.city.strip() or "Austin TX",
+            "what": game.what.strip(),
+            "when": game.when.strip(),
+        }
+    city = context["city"]
 
     try:
         # Initial round: ask 3 questions.
@@ -159,6 +176,7 @@ def next_turn(game: GameRequest):
 
             return {
                 "action": "ask_question",
+                "context": context,
                 **question
             }
 
@@ -179,11 +197,13 @@ def next_turn(game: GameRequest):
         if guess is None:
             return {
                 "action": "no_match",
+                "context": context,
                 "message": f"No matching places found in {city}."
             }
 
         return {
             "action": "guess",
+            "context": context,
             "search_query": search_query,
             **guess
         }
@@ -193,5 +213,6 @@ def next_turn(game: GameRequest):
         log.exception("Game turn failed; sending a fallback question.")
         return {
             "action": "ask_question",
+            "context": context,
             **fallback_question(history, game.rejection_feedback, context)
         }
