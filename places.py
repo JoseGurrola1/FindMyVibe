@@ -22,19 +22,31 @@ def get_places(query, city="Austin TX"):
     if not API_KEY:
         raise ValueError("Missing SERPAPI_KEY")
 
-    response = requests.get(
-        "https://serpapi.com/search.json",
-        params={
-            "engine": "google_maps",
-            "q": f"{query} in {city}",
-            "type": "search",
-            "api_key": API_KEY,
-        },
-        timeout=20,
-    )
-
-    response.raise_for_status()
-    data = response.json()
+    # SerpApi takes the key in the URL, and requests puts the full URL
+    # (key included) in its error messages. Re-raise without the original
+    # error ("from None") so the key never shows up in logs or tracebacks.
+    try:
+        response = requests.get(
+            "https://serpapi.com/search.json",
+            params={
+                "engine": "google_maps",
+                "q": f"{query} in {city}",
+                "type": "search",
+                "api_key": API_KEY,
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except requests.HTTPError as exc:
+        status = exc.response.status_code if exc.response is not None else "?"
+        raise RuntimeError(f"SerpApi returned HTTP {status}") from None
+    except requests.RequestException as exc:
+        raise RuntimeError(
+            f"SerpApi request failed ({type(exc).__name__})"
+        ) from None
+    except ValueError:
+        raise RuntimeError("SerpApi returned invalid JSON") from None
 
     if "error" in data:
         raise RuntimeError(data["error"])
