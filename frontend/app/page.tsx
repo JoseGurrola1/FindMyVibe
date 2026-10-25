@@ -37,7 +37,9 @@ export default function Home() {
   ) => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/game/next', {
+      // Relative URL: same site in production (Caddy routes /api to FastAPI);
+      // in development, next.config.ts forwards /api to localhost:8000.
+      const res = await fetch('/api/game/next', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
